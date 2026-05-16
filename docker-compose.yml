@@ -1,6 +1,7 @@
 include:
   - identity/docker-compose.yml
   - product/docker-compose.yml
+  - observability/docker-compose.yml
 
 services:
   gateway:
@@ -9,10 +10,3 @@ services:
       - "8090:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    volumes:
-      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
-    ports:
-      - "4318:4318"

@@ -1,3 +1,0 @@
-services:
-  product:
-    image: product:latest
