@@ -1,0 +1,24 @@
+:80 {
+	@cors method OPTIONS
+	handle @cors {
+		header Access-Control-Allow-Origin "{header.Origin}"
+		header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+		header Access-Control-Allow-Headers "*"
+		header Access-Control-Max-Age "100"
+		respond 204
+	}
+
+	header Access-Control-Allow-Origin "{header.Origin}"
+	header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+	header Access-Control-Allow-Headers "*"
+
+	handle /auth/* {
+		reverse_proxy identity-app:8080
+	}
+
+	@products path /products /products/*
+	handle @products {
+		# reverse_proxy product-app:8080
+		reverse_proxy host.docker.internal:8080
+	}
+}

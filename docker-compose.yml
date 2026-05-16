@@ -1,26 +1,11 @@
 include:
-  - id/docker-compose.yml
+  - identity/docker-compose.yml
   - product/docker-compose.yml
 
 services:
   gateway:
-    image: traefik:latest
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-      - "--providers.docker.exposedbydefault=false"
+    image: caddy:latest
     ports:
-      - "8080:80"
-      - "8081:8080"
-    security_opt:
-      - label=disable
+      - "8090:80"
     volumes:
-      - "/run/podman/podman.sock:/var/run/docker.sock:ro"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.middlewares.cors.headers.accessControlAllowMethods=GET,OPTIONS,PUT,POST,PATCH,DELETE"
-      - "traefik.http.middlewares.cors.headers.accessControlAllowHeaders=*"
-      - "traefik.http.middlewares.cors.headers.accessControlAllowOriginList=http://localhost:8080,http://localhost:5173"
-      - "traefik.http.middlewares.cors.headers.accessControlMaxAge=100"
-      - "traefik.http.middlewares.cors.headers.addVaryHeader=true"
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro

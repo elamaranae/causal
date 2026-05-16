@@ -1,19 +1,6 @@
 services:
   product-app:
-    image: product-service:latest
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.product-service.rule=PathPrefix(`/products`)"
-      - "traefik.http.routers.product-service.entrypoints=web"
-      - "traefik.http.routers.product-service.middlewares=cors"
-      - "traefik.http.services.product-service.loadbalancer.server.port=8080"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://product-db:5432/productdb
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-    depends_on:
-      product-db:
-        condition: service_healthy
+    image: product:latest
   product-db:
     image: postgres:latest
     restart: always

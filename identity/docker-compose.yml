@@ -1,0 +1,35 @@
+services:
+  identity-app:
+    image: identity:latest
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://identity-db:5432/userdb
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - JWT_PRIVATE_KEY_PATH=/keys/private.pem
+      - JWT_PUBLIC_KEY_PATH=/keys/public.pem
+    volumes:
+      - ../keys:/keys:ro
+    ports:
+      - "9090:8080"
+    depends_on:
+      identity-db:
+        condition: service_healthy
+  identity-db:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_DB=userdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - identity-db-data:/var/lib/postgresql
+
+volumes:
+  identity-db-data:

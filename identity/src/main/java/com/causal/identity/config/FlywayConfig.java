@@ -1,4 +1,4 @@
-package com.causal.product.config;
+package com.causal.identity.config;
 
 import org.flywaydb.core.Flyway;
 import org.springframework.context.annotation.Bean;
