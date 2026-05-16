@@ -10,6 +10,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     volumes:
       - ../keys:/keys:ro
+    ports:
+      - "10000:8080" # warning: only for development environment
     depends_on:
       identity-db:
         condition: service_healthy

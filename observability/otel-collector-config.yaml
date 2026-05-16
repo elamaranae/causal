@@ -18,6 +18,8 @@ exporters:
 
 processors:
   batch:
+    timeout: 2s
+    send_batch_size: 128
 
 service:
   pipelines:
