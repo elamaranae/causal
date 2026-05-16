@@ -18,7 +18,9 @@ public class SecurityConfig {
       http
           .sessionManagement(session -> session
               .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-          .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+          .authorizeHttpRequests(a -> a
+              .requestMatchers("/actuator/**").permitAll()
+              .anyRequest().authenticated())
           .oauth2ResourceServer(o -> o
               .bearerTokenResolver(cookieBearerTokenResolver())
               .jwt(Customizer.withDefaults()));

@@ -27,6 +27,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/auth/register", "/auth/login", "/auth/refresh", "/internal/token-exchange", "/.well-known/jwks.json").permitAll()
                 .anyRequest().authenticated()
             )

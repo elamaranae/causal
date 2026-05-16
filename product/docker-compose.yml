@@ -1,6 +1,8 @@
 services:
   product-app:
     image: product:latest
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
   product-db:
     image: postgres:latest
     restart: always
