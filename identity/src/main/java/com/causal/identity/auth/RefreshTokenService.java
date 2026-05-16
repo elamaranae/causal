@@ -5,11 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,7 +24,7 @@ public class RefreshTokenService {
     }
 
     public Optional<RefreshToken> findByToken(String token) {
-        return refreshTokenRepository.findByToken(hashToken(token));
+        return refreshTokenRepository.findByToken(TokenHasher.hash(token));
     }
 
     public RefreshToken createRefreshToken(Long userId) {
@@ -37,7 +33,7 @@ public class RefreshTokenService {
 
         refreshToken.setUser(userRepository.findById(userId).get());
         refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenDurationMs));
-        refreshToken.setToken(hashToken(rawToken));
+        refreshToken.setToken(TokenHasher.hash(rawToken));
 
         refreshToken = refreshTokenRepository.save(refreshToken);
         // Set raw token on in-memory entity so callers can return it to the client
@@ -59,13 +55,4 @@ public class RefreshTokenService {
         return refreshTokenRepository.deleteByUser(userRepository.findById(userId).get());
     }
 
-    private String hashToken(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 not available", e);
-        }
-    }
 }

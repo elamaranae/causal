@@ -47,6 +47,14 @@ export async function apiFetch(url: string, options: RequestInit & { fetch?: typ
 		headers.set('Content-Type', 'application/json');
 	}
 
+	const method = (fetchOptions.method || 'GET').toUpperCase();
+	if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+		const csrfToken = getCsrfToken();
+		if (csrfToken) {
+			headers.set('X-CSRF-Token', csrfToken);
+		}
+	}
+
 	let response = await fetchToUse(url, {
 		...fetchOptions,
 		headers,
@@ -74,6 +82,11 @@ export async function apiFetch(url: string, options: RequestInit & { fetch?: typ
 	}
 
 	return response;
+}
+
+function getCsrfToken(): string | null {
+	const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+	return match ? match[1] : null;
 }
 
 async function refreshTokens(): Promise<boolean> {

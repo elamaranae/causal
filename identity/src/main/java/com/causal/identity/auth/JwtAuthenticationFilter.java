@@ -37,7 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (jwt == null) {
             final String authHeader = request.getHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            if (authHeader != null && authHeader.startsWith("Bearer ") && !authHeader.startsWith("Bearer causal_")) {
                 jwt = authHeader.substring(7);
             }
         }
@@ -47,8 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        final String userEmail;
-        userEmail = jwtUtil.extractUsername(jwt);
+        final String userEmail = jwtUtil.extractUsername(jwt);
 
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);

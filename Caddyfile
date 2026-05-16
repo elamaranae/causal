@@ -1,7 +1,7 @@
 :80 {
 	header Access-Control-Allow-Origin "{header.Origin}"
 	header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-	header Access-Control-Allow-Headers "Content-Type, Authorization"
+	header Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-Token"
 	header Access-Control-Allow-Credentials "true"
 	header Access-Control-Max-Age "100"
 
@@ -10,13 +10,34 @@
 		respond 204
 	}
 
-	handle /auth/* {
-		reverse_proxy identity-app:8080
+	# CSRF validation for mutating requests (skip auth endpoints and API token requests)
+	@csrf_required {
+		method POST PUT PATCH DELETE
+		not path /auth/login /auth/register /auth/refresh /internal/*
+		not header_regexp Authorization "Bearer causal_.+"
+	}
+	@csrf_invalid {
+		method POST PUT PATCH DELETE
+		not path /auth/login /auth/register /auth/refresh /internal/*
+		not header_regexp Authorization "Bearer causal_.+"
+		expression `{http.request.header.X-CSRF-Token} != {http.request.cookie.csrf_token} || {http.request.cookie.csrf_token} == ""`
 	}
 
-	@products path /products /products/*
-	handle @products {
-		# reverse_proxy product-app:8080
-		reverse_proxy host.docker.internal:8080
+	handle @csrf_invalid {
+		respond "CSRF validation failed" 403
+	}
+
+	@api_token header_regexp Authorization "Bearer causal_.+"
+
+	route {
+		forward_auth @api_token identity-app:8080 {
+			uri /internal/token-exchange
+			copy_headers X-Forwarded-Authorization>Authorization
+		}
+
+		reverse_proxy /auth/* identity-app:8080
+
+		@products path /products /products/*
+		reverse_proxy @products host.docker.internal:8080
 	}
 }

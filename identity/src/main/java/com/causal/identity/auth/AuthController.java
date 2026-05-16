@@ -14,10 +14,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.SecureRandom;
+import java.util.HexFormat;
 import java.util.Map;
 
 @RestController
@@ -66,7 +70,7 @@ public class AuthController {
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
         addAuthCookies(response, jwt, refreshToken.getToken());
-        return ResponseEntity.ok(Map.of("message", "Registration successful"));
+        return ResponseEntity.ok(Map.of("accessToken", jwt, "refreshToken", refreshToken.getToken()));
     }
 
     @PostMapping("/auth/login")
@@ -88,11 +92,22 @@ public class AuthController {
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
         addAuthCookies(response, jwt, refreshToken.getToken());
-        return ResponseEntity.ok(Map.of("message", "Login successful"));
+        return ResponseEntity.ok(Map.of("accessToken", jwt, "refreshToken", refreshToken.getToken()));
     }
 
     @PostMapping("/auth/refresh")
-    public ResponseEntity<?> refreshToken(@CookieValue(name = "refresh_token") String requestRefreshToken, HttpServletResponse response) {
+    public ResponseEntity<?> refreshToken(
+            @CookieValue(name = "refresh_token", required = false) String cookieRefreshToken,
+            @RequestBody(required = false) Map<String, String> body,
+            HttpServletResponse response) {
+        String requestRefreshToken = cookieRefreshToken;
+        if (requestRefreshToken == null && body != null) {
+            requestRefreshToken = body.get("refreshToken");
+        }
+        if (requestRefreshToken == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Refresh token is required"));
+        }
+
         return refreshTokenService.findByToken(requestRefreshToken)
                 .map(refreshTokenService::verifyExpiration)
                 .map(refreshToken -> {
@@ -101,17 +116,34 @@ public class AuthController {
                     RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user.getId());
                     String token = jwtUtil.generateToken(userDetailsService.loadUserByUsername(user.getEmail()));
                     addAuthCookies(response, token, newRefreshToken.getToken());
-                    return ResponseEntity.ok(Map.of("message", "Token refreshed"));
+                    return ResponseEntity.ok(Map.of("accessToken", token, "refreshToken", newRefreshToken.getToken()));
                 })
                 .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
     }
 
+    @GetMapping("/internal/token-exchange")
+    public ResponseEntity<?> tokenExchange(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer causal_")) {
+            return ResponseEntity.status(401).build();
+        }
+
+        String apiToken = authHeader.substring(7);
+        String hash = TokenHasher.hash(apiToken);
+        User user = userRepository.findByApiTokenHash(hash).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+        String jwt = jwtUtil.generateToken(userDetails);
+        return ResponseEntity.ok()
+                .header("X-Forwarded-Authorization", "Bearer " + jwt)
+                .build();
+    }
+
     @PostMapping("/auth/logout")
     public ResponseEntity<?> logoutUser(HttpServletResponse response) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser();
 
         refreshTokenService.deleteByUserId(user.getId());
         clearAuthCookies(response);
@@ -119,38 +151,51 @@ public class AuthController {
     }
 
     private void addAuthCookies(HttpServletResponse response, String accessToken, String refreshToken) {
-        Cookie accessCookie = new Cookie("access_token", accessToken);
-        accessCookie.setHttpOnly(true);
-        accessCookie.setSecure(cookieSecure);
-        accessCookie.setPath("/");
-        accessCookie.setMaxAge((int) (jwtExpirationMs / 1000));
-        accessCookie.setAttribute("SameSite", "Lax");
-        response.addCookie(accessCookie);
-
-        Cookie refreshCookie = new Cookie("refresh_token", refreshToken);
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(cookieSecure);
-        refreshCookie.setPath("/auth/refresh");
-        refreshCookie.setMaxAge((int) (refreshExpirationMs / 1000));
-        refreshCookie.setAttribute("SameSite", "Lax");
-        response.addCookie(refreshCookie);
+        response.addCookie(buildCookie("access_token", accessToken, "/", (int) (jwtExpirationMs / 1000)));
+        response.addCookie(buildCookie("refresh_token", refreshToken, "/auth/refresh", (int) (refreshExpirationMs / 1000)));
+        response.addCookie(buildCsrfCookie());
     }
 
     private void clearAuthCookies(HttpServletResponse response) {
-        Cookie accessCookie = new Cookie("access_token", "");
-        accessCookie.setHttpOnly(true);
-        accessCookie.setSecure(cookieSecure);
-        accessCookie.setPath("/");
-        accessCookie.setMaxAge(0);
-        accessCookie.setAttribute("SameSite", "Lax");
-        response.addCookie(accessCookie);
+        response.addCookie(buildCookie("access_token", "", "/", 0));
+        response.addCookie(buildCookie("refresh_token", "", "/auth/refresh", 0));
 
-        Cookie refreshCookie = new Cookie("refresh_token", "");
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(cookieSecure);
-        refreshCookie.setPath("/auth/refresh");
-        refreshCookie.setMaxAge(0);
-        refreshCookie.setAttribute("SameSite", "Lax");
-        response.addCookie(refreshCookie);
+        Cookie csrfCookie = new Cookie("csrf_token", "");
+        csrfCookie.setHttpOnly(false);
+        csrfCookie.setSecure(cookieSecure);
+        csrfCookie.setPath("/");
+        csrfCookie.setMaxAge(0);
+        csrfCookie.setAttribute("SameSite", "Lax");
+        response.addCookie(csrfCookie);
+    }
+
+    private Cookie buildCsrfCookie() {
+        byte[] randomBytes = new byte[16];
+        new SecureRandom().nextBytes(randomBytes);
+        String csrfToken = HexFormat.of().formatHex(randomBytes);
+
+        Cookie cookie = new Cookie("csrf_token", csrfToken);
+        cookie.setHttpOnly(false);
+        cookie.setSecure(cookieSecure);
+        cookie.setPath("/");
+        cookie.setMaxAge((int) (jwtExpirationMs / 1000));
+        cookie.setAttribute("SameSite", "Lax");
+        return cookie;
+    }
+
+    private User getAuthenticatedUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private Cookie buildCookie(String name, String value, String path, int maxAge) {
+        Cookie cookie = new Cookie(name, value);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(cookieSecure);
+        cookie.setPath(path);
+        cookie.setMaxAge(maxAge);
+        cookie.setAttribute("SameSite", "Lax");
+        return cookie;
     }
 }
