@@ -34,8 +34,7 @@
 				throw new Error(data.message || 'Registration failed');
 			}
 
-			const data = await response.json();
-			await auth.setAuth(data.accessToken, data.refreshToken);
+			await auth.onLoginSuccess();
 			goto('/');
 		} catch (err: any) {
 			error = err.message;

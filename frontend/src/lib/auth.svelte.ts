@@ -3,9 +3,8 @@ import type { User } from './types';
 import { ENDPOINTS, apiFetch } from './api/config';
 
 class AuthState {
-	accessToken = $state<string | null>(browser ? localStorage.getItem('accessToken') : null);
-	refreshToken = $state<string | null>(browser ? localStorage.getItem('refreshToken') : null);
 	user = $state<User | null>(browser ? JSON.parse(localStorage.getItem('user') || 'null') : null);
+	isAuthenticated = $state<boolean>(browser ? localStorage.getItem('isAuthenticated') === 'true' : false);
 
 	async fetchUser() {
 		try {
@@ -13,59 +12,26 @@ class AuthState {
 			if (response.ok) {
 				const userData = await response.json();
 				this.user = userData;
+				this.isAuthenticated = true;
 				if (browser) {
 					localStorage.setItem('user', JSON.stringify(userData));
+					localStorage.setItem('isAuthenticated', 'true');
 				}
+			} else {
+				this.clearLocal();
 			}
 		} catch (error) {
 			console.error('Failed to fetch user:', error);
+			this.clearLocal();
 		}
 	}
 
-	async setAuth(accessToken: string, refreshToken: string, user?: User) {
-		this.accessToken = accessToken;
-		this.refreshToken = refreshToken;
-		
+	async onLoginSuccess() {
+		this.isAuthenticated = true;
 		if (browser) {
-			localStorage.setItem('accessToken', accessToken);
-			localStorage.setItem('refreshToken', refreshToken);
+			localStorage.setItem('isAuthenticated', 'true');
 		}
-
-		if (user) {
-			this.user = user;
-			if (browser) {
-				localStorage.setItem('user', JSON.stringify(user));
-			}
-		} else {
-			await this.fetchUser();
-		}
-	}
-
-	async refreshTokens(): Promise<boolean> {
-		if (!this.refreshToken) return false;
-
-		try {
-			const response = await fetch(ENDPOINTS.AUTH.REFRESH, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ refreshToken: this.refreshToken })
-			});
-
-			if (response.ok) {
-				const data = await response.json();
-				this.setAuth(data.accessToken, data.refreshToken || this.refreshToken, data.user || this.user);
-				return true;
-			}
-
-			await this.logout();
-			return false;
-		} catch (error) {
-			console.error('Token refresh failed:', error);
-			await this.logout();
-			return false;
-		}
+		await this.fetchUser();
 	}
 
 	async logout() {
@@ -74,20 +40,17 @@ class AuthState {
 		} catch (error) {
 			console.error('Failed to call logout endpoint:', error);
 		} finally {
-			this.accessToken = null;
-			this.refreshToken = null;
-			this.user = null;
-
-			if (browser) {
-				localStorage.removeItem('accessToken');
-				localStorage.removeItem('refreshToken');
-				localStorage.removeItem('user');
-			}
+			this.clearLocal();
 		}
 	}
 
-	get isAuthenticated() {
-		return !!this.accessToken;
+	private clearLocal() {
+		this.user = null;
+		this.isAuthenticated = false;
+		if (browser) {
+			localStorage.removeItem('user');
+			localStorage.removeItem('isAuthenticated');
+		}
 	}
 }
 

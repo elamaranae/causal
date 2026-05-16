@@ -1,16 +1,14 @@
 :80 {
-	@cors method OPTIONS
-	handle @cors {
-		header Access-Control-Allow-Origin "{header.Origin}"
-		header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-		header Access-Control-Allow-Headers "*"
-		header Access-Control-Max-Age "100"
-		respond 204
-	}
-
 	header Access-Control-Allow-Origin "{header.Origin}"
 	header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-	header Access-Control-Allow-Headers "*"
+	header Access-Control-Allow-Headers "Content-Type, Authorization"
+	header Access-Control-Allow-Credentials "true"
+	header Access-Control-Max-Age "100"
+
+	@cors method OPTIONS
+	handle @cors {
+		respond 204
+	}
 
 	handle /auth/* {
 		reverse_proxy identity-app:8080

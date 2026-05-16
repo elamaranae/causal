@@ -43,23 +43,20 @@ export async function apiFetch(url: string, options: RequestInit & { fetch?: typ
 
 	const headers = new Headers(fetchOptions.headers);
 
-	if (auth.accessToken) {
-		headers.set('Authorization', `Bearer ${auth.accessToken}`);
-	}
-
 	if (fetchOptions.body && !(fetchOptions.body instanceof FormData)) {
 		headers.set('Content-Type', 'application/json');
 	}
 
 	let response = await fetchToUse(url, {
 		...fetchOptions,
-		headers
+		headers,
+		credentials: 'include'
 	});
 
-	if ((response.status === 403 || response.status === 401) && auth.refreshToken) {
+	if ((response.status === 403 || response.status === 401) && auth.isAuthenticated) {
 		if (!isRefreshing) {
 			isRefreshing = true;
-			refreshPromise = auth.refreshTokens().finally(() => {
+			refreshPromise = refreshTokens().finally(() => {
 				isRefreshing = false;
 				refreshPromise = null;
 			});
@@ -67,14 +64,34 @@ export async function apiFetch(url: string, options: RequestInit & { fetch?: typ
 
 		const success = await refreshPromise;
 
-		if (success && auth.accessToken) {
-			headers.set('Authorization', `Bearer ${auth.accessToken}`);
+		if (success) {
 			response = await fetchToUse(url, {
 				...fetchOptions,
-				headers
+				headers,
+				credentials: 'include'
 			});
 		}
 	}
 
 	return response;
+}
+
+async function refreshTokens(): Promise<boolean> {
+	try {
+		const response = await fetch(ENDPOINTS.AUTH.REFRESH, {
+			method: 'POST',
+			credentials: 'include'
+		});
+
+		if (response.ok) {
+			return true;
+		}
+
+		await auth.logout();
+		return false;
+	} catch (error) {
+		console.error('Token refresh failed:', error);
+		await auth.logout();
+		return false;
+	}
 }
