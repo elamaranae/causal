@@ -2,7 +2,13 @@ services:
   product-app:
     image: product:latest
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://product-db:5432/productdb
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+    depends_on:
+      product-db:
+        condition: service_healthy
   product-db:
     image: postgres:latest
     restart: always
