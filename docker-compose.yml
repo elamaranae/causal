@@ -1,7 +1,6 @@
 include:
   - identity/docker-compose.yml
   - product/docker-compose.yml
-  - observability/docker-compose.yml
 
 services:
   gateway:
@@ -10,3 +9,6 @@ services:
       - "8090:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+      - OTEL_SERVICE_NAME=gateway
