@@ -8,13 +8,12 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 
 @Entity
-@Table(name = "products")
+@Table(name = "product_categories")
 @Getter
-public class Product {
+public class ProductCategory {
   @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  private long id;
   private String name;
   private String description;
-  private String primaryThumbnailUrl;
-  private long categoryId;
+  private Long parentId;
 }
