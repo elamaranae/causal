@@ -1,6 +1,6 @@
 :80 {
         tracing {
-            span gateway
+            span "{http.request.proto} {http.request.method} {http.request.uri.path}"
         }
 
 	header Access-Control-Allow-Origin "{header.Origin}"
@@ -14,17 +14,13 @@
 		respond 204
 	}
 
-	# CSRF validation for mutating requests (skip auth endpoints and API token requests)
-	@csrf_required {
-		method POST PUT PATCH DELETE
-		not path /auth/login /auth/register /auth/refresh /internal/*
-		not header_regexp Authorization "Bearer causal_.+"
-	}
+	# CSRF validation for mutating requests when cookies are present
 	@csrf_invalid {
 		method POST PUT PATCH DELETE
 		not path /auth/login /auth/register /auth/refresh /internal/*
 		not header_regexp Authorization "Bearer causal_.+"
-		expression `{http.request.header.X-CSRF-Token} != {http.request.cookie.csrf_token} || {http.request.cookie.csrf_token} == ""`
+		header Cookie *
+		expression `{http.request.header.X-CSRF-Token} != {http.request.cookie.csrf_token} || {http.request.header.X-CSRF-Token} == ""`
 	}
 
 	handle @csrf_invalid {
