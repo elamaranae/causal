@@ -1,5 +1,7 @@
 package com.causal.product.controller;
 
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.causal.product.dto.response.ProductListingResponse;
@@ -14,7 +16,7 @@ public class ProductController {
   }
 
   @GetMapping("products/trending")
-  public ProductListingResponse[] trendingProduct() {
+  public List<ProductListingResponse> trendingProduct() {
     return service.getTrendingProducts();
   }
 }
