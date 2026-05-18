@@ -11,8 +11,9 @@ const ROUTES = {
 		ME: '/auth/me'
 	},
 	PRODUCTS: {
-		LIST: '/products',
-		DETAIL: (id: string | number) => `/products/${id}`
+		TRENDING: '/products/trending',
+		CATEGORIES: '/products/categories',
+		FILTER: (categoryId: number, page = 1, size = 20) => `/products/filter?categoryId=${categoryId}&page=${page}&size=${size}`
 	},
 	CART: {
 		GET: '/cart',

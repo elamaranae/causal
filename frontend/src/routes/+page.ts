@@ -1,17 +1,17 @@
 import { ENDPOINTS, apiFetch } from '$lib/api/config';
-import type { Product } from '$lib/types';
+import type { ProductListing } from '$lib/types';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch }) => {
-	const response = await apiFetch(ENDPOINTS.PRODUCTS.LIST, { fetch });
-	
+	const response = await apiFetch(ENDPOINTS.PRODUCTS.TRENDING, { fetch });
+
 	if (!response.ok) {
 		return {
-			products: [] as Product[]
+			products: [] as ProductListing[]
 		};
 	}
 
-	const products: Product[] = await response.json();
+	const products: ProductListing[] = await response.json();
 
 	return {
 		products

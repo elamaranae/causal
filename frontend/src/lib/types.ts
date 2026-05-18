@@ -1,12 +1,29 @@
-export interface Product {
+export interface ProductListing {
 	id: number;
 	name: string;
-	description: string;
-	price: number;
+	primaryThumbnailUrl: string | null;
+	categoryId: number;
+}
+
+export interface ProductCategory {
+	id: number;
+	name: string;
+	description: string | null;
+	parentId: number | null;
+}
+
+export interface Page<T> {
+	content: T[];
+	totalPages: number;
+	totalElements: number;
+	number: number;
+	size: number;
+	first: boolean;
+	last: boolean;
 }
 
 export interface CartItem {
-	product: Product;
+	product: ProductListing;
 	quantity: number;
 }
 

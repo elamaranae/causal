@@ -1,11 +1,12 @@
 package com.causal.product.service;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import com.causal.product.dto.response.ProductListingResponse;
 import com.causal.product.mapper.ProductMapper;
 import com.causal.product.repository.ProductRepository;
-import com.causal.product.model.Product;
 
 @Service
 public class ProductService {
@@ -18,7 +19,10 @@ public class ProductService {
   }
 
   public List<ProductListingResponse> getTrendingProducts() {
-    List<Product> products = repository.findTop5By();
-    return products.stream().map(mapper::from).toList();
+    return repository.findTop5By().stream().map(mapper::from).toList();
+  }
+
+  public Page<ProductListingResponse> filterProducts(Long categoryId, Pageable pageable) {
+    return repository.findByCategoryId(categoryId, pageable).map(mapper::from);
   }
 }

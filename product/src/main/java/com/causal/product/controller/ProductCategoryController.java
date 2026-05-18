@@ -9,7 +9,6 @@ import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
 
-
 @RestController
 public class ProductCategoryController {
   private final ProductCategoryService service;

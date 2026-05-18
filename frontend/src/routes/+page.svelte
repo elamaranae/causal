@@ -1,111 +1,202 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
 	import { cart } from '$lib/cart.svelte';
+	import { categories } from '$lib/categories.svelte';
+	import { ENDPOINTS, apiFetch } from '$lib/api/config';
+	import type { ProductListing, Page } from '$lib/types';
 	import type { PageProps } from './$types';
-	
+	import { onMount } from 'svelte';
+
 	let { data }: PageProps = $props();
 
-	const productImages = [
-		'bg-slate-200',
-		'bg-slate-300',
-		'bg-slate-400',
-		'bg-slate-500',
-	];
+	let filteredPage = $state<Page<ProductListing> | null>(null);
+	let loading = $state(false);
+	let currentPage = $state(1);
+
+	let products = $derived(filteredPage ? filteredPage.content : data.products);
+	let showPagination = $derived(filteredPage !== null && filteredPage.totalPages > 1);
+
+	let heading = $derived(
+		categories.selectedId !== null
+			? categories.categories.find((c) => c.id === categories.selectedId)?.name ?? 'Products'
+			: 'Trending'
+	);
+
+	onMount(() => {
+		categories.load();
+	});
+
+	$effect(() => {
+		const id = categories.selectedId;
+		if (id === null) {
+			filteredPage = null;
+			currentPage = 1;
+		} else {
+			fetchFiltered(id, 1);
+		}
+	});
+
+	async function fetchFiltered(categoryId: number, page: number) {
+		loading = true;
+		currentPage = page;
+		const response = await apiFetch(ENDPOINTS.PRODUCTS.FILTER(categoryId, page));
+		if (response.ok) {
+			filteredPage = await response.json();
+		}
+		loading = false;
+	}
+
+	function goToPage(page: number) {
+		if (categories.selectedId !== null) {
+			fetchFiltered(categories.selectedId, page);
+		}
+	}
+
+	function getCategoryName(categoryId: number): string | undefined {
+		return categories.categories.find((c) => c.id === categoryId)?.name;
+	}
 </script>
 
-<div class="flex flex-col">
-	<!-- Hero Section -->
-	<section class="relative bg-slate-900 text-white">
-		<div class="absolute inset-0 overflow-hidden">
-			<!-- Abstract Background -->
-			<div class="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900"></div>
-			<div class="absolute top-0 left-0 w-full h-full opacity-30 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px]"></div>
-		</div>
-		<div class="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32 flex flex-col items-center text-center">
-			<h1 class="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl max-w-3xl">
-				Essentials for the modern minimalist.
-			</h1>
-			<p class="mt-6 text-xl text-slate-300 max-w-2xl">
-				Thoughtfully designed clothing that blends comfort with timeless style. Built to last, designed to be lived in.
-			</p>
-			<div class="mt-10 flex gap-4">
-				<Button variant="secondary" class="!px-8 !py-4 !text-lg">Shop Collection</Button>
-				<Button variant="outline" class="!px-8 !py-4 !text-lg !bg-transparent !text-white !border-white hover:!bg-white hover:!text-slate-900">Read Our Story</Button>
-			</div>
-		</div>
-	</section>
-
-	<!-- Featured Collection -->
-	<section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-		<div class="flex items-center justify-between mb-8">
-			<h2 class="text-2xl font-bold tracking-tight text-slate-900">Featured Collection</h2>
-			<a href="/" class="text-sm font-medium text-slate-600 hover:text-slate-900 flex items-center gap-1">
-				View all
-				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-				</svg>
-			</a>
-		</div>
-
-		<div class="grid grid-cols-1 gap-y-10 gap-x-6 sm:grid-cols-2 lg:grid-cols-4 xl:gap-x-8">
-			{#each data.products as product, i (product.id)}
-				<div class="group relative flex flex-col">
-					<div class="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-md {productImages[i % productImages.length]} lg:aspect-none lg:h-80 group-hover:opacity-75 transition-opacity">
-						<!-- Placeholder for image -->
-						<div class="h-full w-full flex items-center justify-center text-slate-500 font-medium">
-							Product Image
-						</div>
-					</div>
-					<div class="mt-4 flex flex-1 flex-col justify-between">
-						<div>
-							<div class="flex justify-between items-start">
-								<h3 class="text-sm font-medium text-slate-700">
-									<a href="/">
-										<span aria-hidden="true" class="absolute inset-0"></span>
-										{product.name}
-									</a>
-								</h3>
-								<p class="text-sm font-medium text-slate-900">${product.price.toFixed(2)}</p>
-							</div>
-							<p class="mt-1 text-sm text-slate-500">{product.description}</p>
-						</div>
-						<div class="mt-4">
-							<Button 
-								variant="primary" 
-								class="w-full relative z-10"
-								onclick={() => cart.addItem(product)}
-							>
-								Add to Cart
-							</Button>
-						</div>
-					</div>
-				</div>
+<div class="flex flex-1">
+	<!-- Desktop category sidebar -->
+	<aside class="hidden md:flex flex-col w-56 shrink-0 border-r border-slate-200 bg-slate-50/50 p-6 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+		<p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Categories</p>
+		<nav class="flex flex-col gap-0.5">
+			<button
+				class="text-left text-sm py-1.5 px-2 rounded transition-colors {categories.selectedId === null ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'} cursor-pointer"
+				onclick={() => categories.select(null)}
+			>
+				All
+			</button>
+			{#each categories.topLevel as cat (cat.id)}
+				<button
+					class="text-left text-sm py-1.5 px-2 rounded transition-colors {categories.selectedId === cat.id ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'} cursor-pointer"
+					onclick={() => categories.select(cat.id)}
+				>
+					{cat.name}
+				</button>
+				{#each categories.childrenOf(cat.id) as child (child.id)}
+					<button
+						class="text-left text-[13px] py-1 pl-5 pr-2 rounded transition-colors {categories.selectedId === child.id ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'} cursor-pointer"
+						onclick={() => categories.select(child.id)}
+					>
+						{child.name}
+					</button>
+				{/each}
 			{/each}
-		</div>
-	</section>
+		</nav>
+	</aside>
 
-	<!-- Call to Action -->
-	<section class="bg-slate-50">
-		<div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-			<div class="bg-slate-900 rounded-2xl overflow-hidden shadow-xl lg:grid lg:grid-cols-2 lg:gap-4">
-				<div class="px-6 pt-10 pb-12 sm:px-16 sm:pt-16 lg:py-16 lg:pr-0 xl:py-20 xl:px-20">
-					<div class="lg:self-center">
-						<h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-							<span class="block">Ready to upgrade your wardrobe?</span>
-						</h2>
-						<p class="mt-4 text-lg leading-6 text-slate-300">
-							Join thousands of others who have simplified their daily routine with our capsule collection.
-						</p>
-						<a href="/register" class="mt-8 inline-block bg-white border border-transparent rounded-md py-3 px-8 text-base font-medium text-slate-900 hover:bg-slate-100">
-							Get started
-						</a>
-					</div>
-				</div>
-				<div class="aspect-w-5 aspect-h-3 -mt-6 md:aspect-w-2 md:aspect-h-1">
-					<div class="transform translate-x-6 translate-y-6 rounded-md object-cover object-left-top sm:translate-x-16 lg:translate-y-20 bg-slate-800 h-full w-full opacity-50"></div>
-				</div>
+	<!-- Mobile category bar -->
+	{#if categories.topLevel.length > 0}
+		<div class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-4 py-2 overflow-x-auto">
+			<div class="flex gap-2">
+				<button
+					class="shrink-0 text-xs font-medium py-1.5 px-3 rounded-full transition-colors {categories.selectedId === null ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'} cursor-pointer"
+					onclick={() => categories.select(null)}
+				>
+					All
+				</button>
+				{#each categories.categories as cat (cat.id)}
+					<button
+						class="shrink-0 text-xs font-medium py-1.5 px-3 rounded-full transition-colors {categories.selectedId === cat.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'} cursor-pointer"
+						onclick={() => categories.select(cat.id)}
+					>
+						{cat.name}
+					</button>
+				{/each}
 			</div>
 		</div>
-	</section>
-</div>
+	{/if}
 
+	<!-- Product grid -->
+	<div class="flex-1 min-w-0 p-6 lg:p-8 max-w-6xl">
+		<div class="mb-8">
+			<h1 class="text-2xl font-bold tracking-tight text-slate-900">{heading}</h1>
+			<p class="mt-1 text-sm text-slate-500">
+				{#if categories.selectedId === null}
+					Our most popular products right now
+				{:else if filteredPage}
+					{filteredPage.totalElements} product{filteredPage.totalElements !== 1 ? 's' : ''} in {heading.toLowerCase()}
+				{:else}
+					Browsing {heading.toLowerCase()}
+				{/if}
+			</p>
+		</div>
+
+		{#if loading}
+			<div class="text-center py-16">
+				<p class="text-slate-400">Loading...</p>
+			</div>
+		{:else if products.length === 0}
+			<div class="text-center py-16">
+				<p class="text-slate-400">No products found.</p>
+			</div>
+		{:else}
+			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+				{#each products as product (product.id)}
+					<div class="group flex flex-col bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+						<div class="aspect-square bg-slate-100 overflow-hidden">
+							{#if product.primaryThumbnailUrl}
+								<img
+									src={product.primaryThumbnailUrl}
+									alt={product.name}
+									class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+								/>
+							{:else}
+								<div class="h-full w-full flex items-center justify-center text-slate-300">
+									<svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+									</svg>
+								</div>
+							{/if}
+						</div>
+						<div class="p-4 flex flex-col gap-2 flex-1">
+							<h3 class="text-sm font-medium text-slate-900">{product.name}</h3>
+							{#if getCategoryName(product.categoryId)}
+								<span class="text-xs text-slate-400">{getCategoryName(product.categoryId)}</span>
+							{/if}
+							<div class="mt-auto pt-3">
+								<button
+									class="w-full text-center text-sm font-medium py-2 px-4 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+									onclick={() => cart.addItem(product)}
+								>
+									Add to Cart
+								</button>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Pagination -->
+			{#if showPagination && filteredPage}
+				<div class="mt-8 flex items-center justify-center gap-2">
+					<button
+						class="px-3 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+						disabled={filteredPage.first}
+						onclick={() => goToPage(currentPage - 1)}
+					>
+						Previous
+					</button>
+
+					{#each Array(filteredPage.totalPages) as _, i}
+						<button
+							class="w-9 h-9 text-sm rounded-md transition-colors cursor-pointer {currentPage === i + 1 ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'}"
+							onclick={() => goToPage(i + 1)}
+						>
+							{i + 1}
+						</button>
+					{/each}
+
+					<button
+						class="px-3 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+						disabled={filteredPage.last}
+						onclick={() => goToPage(currentPage + 1)}
+					>
+						Next
+					</button>
+				</div>
+			{/if}
+		{/if}
+	</div>
+</div>

@@ -1,5 +1,4 @@
-import { ENDPOINTS } from '$lib/api/config';
-import type { Product, CartItem } from './types';
+import type { ProductListing, CartItem } from './types';
 
 class CartStore {
 	#items = $state<CartItem[]>([]);
@@ -12,15 +11,11 @@ class CartStore {
 		return this.#items.reduce((sum, item) => sum + item.quantity, 0);
 	}
 
-	get totalPrice() {
-		return this.#items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-	}
-
 	getItemQuantity(productId: number) {
 		return this.#items.find((item) => item.product.id === productId)?.quantity || 0;
 	}
 
-	async addItem(product: Product) {
+	async addItem(product: ProductListing) {
 		const existingItem = this.#items.find((item) => item.product.id === product.id);
 
 		if (existingItem) {
@@ -28,14 +23,6 @@ class CartStore {
 		} else {
 			this.#items.push({ product, quantity: 1 });
 		}
-
-		// Optional: Sync with API
-		/*
-		await fetch(ENDPOINTS.CART.ADD, {
-			method: 'POST',
-			body: JSON.stringify({ productId: product.id, quantity: 1 })
-		});
-		*/
 	}
 
 	async removeItem(productId: number) {
