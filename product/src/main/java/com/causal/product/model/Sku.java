@@ -32,8 +32,15 @@ public class Sku {
   @JoinColumn(name = "product_id")
   private Product product;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "media_id")
+  private ProductMedia media;
+
   @Column(name = "product_id", insertable = false, updatable = false)
   private Long productId;
+
+  @Column(name = "media_id", insertable = false, updatable = false)
+  private Long mediaId;
 
   @JdbcTypeCode(SqlTypes.JSON)
   private Map<String, Object> attributes = new HashMap<>();

@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.causal.product.model.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
-  @EntityGraph(attributePaths = {"skus"})
+  @EntityGraph(attributePaths = {"skus", "skus.media"})
   public Optional<Product> findWithSkusById(Long id);
   public List<Product> findTop5By();
   public Page<Product> findByCategoryId(Long categoryId, Pageable pageable);
