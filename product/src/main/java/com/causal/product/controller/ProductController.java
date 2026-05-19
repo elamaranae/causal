@@ -8,9 +8,11 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.causal.product.dto.response.ProductListingResponse;
+import com.causal.product.dto.response.ProductShowResponse;
 import com.causal.product.service.ProductService;
 
 @RestController
@@ -19,6 +21,11 @@ public class ProductController {
 
   public ProductController(ProductService service) {
     this.service = service;
+  }
+
+  @GetMapping("products/{id}")
+  public ProductShowResponse getProduct(@PathVariable("id") Long id) {
+    return service.getProduct(id);
   }
 
   @GetMapping("products/trending")
