@@ -5,6 +5,30 @@ export interface ProductListing {
 	categoryId: number;
 }
 
+export interface MediaItem {
+	url: string;
+	type: string;
+	primary: boolean;
+	thumbnail: string;
+}
+
+export interface Sku {
+	id: number;
+	isDefault: boolean;
+	attributes: Record<string, string>;
+	variantAttributes: Record<string, string>;
+	media: { id: number; media: MediaItem[] } | null;
+}
+
+export interface ProductShow {
+	id: number;
+	name: string;
+	primaryThumbnailUrl: string | null;
+	categoryId: number;
+	attributes: Record<string, string>;
+	skus: Sku[];
+}
+
 export interface ProductCategory {
 	id: number;
 	name: string;

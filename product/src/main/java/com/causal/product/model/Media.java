@@ -2,7 +2,6 @@ package com.causal.product.model;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,12 +21,12 @@ import lombok.Getter;
 @Entity
 @Table(name = "product_media")
 @Getter
-public class ProductMedia {
+public class Media {
   @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
   @OneToMany(mappedBy = "media")
-  private List<Sku> sku = new ArrayList<>();
+  private List<Sku> skus = new ArrayList<>();
 
   @JdbcTypeCode(SqlTypes.JSON)
   private List<Map<String, Object>> media = new ArrayList<>();

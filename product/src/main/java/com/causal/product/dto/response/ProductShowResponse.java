@@ -8,6 +8,7 @@ public record ProductShowResponse(
     String name,
     String primaryThumbnailUrl,
     long categoryId,
+    String primaryVariantKey,
     Map<String, Object> attributes,
     List<SkuResponse> skus
 ) {};

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/auth.svelte';
-	import { ENDPOINTS, apiFetch } from '$lib/api/config';
+	import { urls, apiFetch } from '$lib/api';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Logo from '$lib/components/Logo.svelte';
@@ -17,7 +17,7 @@
 		error = null;
 
 		try {
-			const response = await apiFetch(ENDPOINTS.AUTH.LOGIN, {
+			const response = await apiFetch(urls.auth.login, {
 				method: 'POST',
 				body: JSON.stringify({ email, password })
 			});

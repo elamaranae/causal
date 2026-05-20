@@ -1,7 +1,8 @@
+import { browser } from '$app/environment';
 import type { ProductListing, CartItem } from './types';
 
 class CartStore {
-	#items = $state<CartItem[]>([]);
+	#items = $state<CartItem[]>(browser ? JSON.parse(localStorage.getItem('cart') || '[]') : []);
 
 	get items() {
 		return this.#items;
@@ -15,28 +16,35 @@ class CartStore {
 		return this.#items.find((item) => item.product.id === productId)?.quantity || 0;
 	}
 
-	async addItem(product: ProductListing) {
-		const existingItem = this.#items.find((item) => item.product.id === product.id);
-
-		if (existingItem) {
-			existingItem.quantity += 1;
+	addItem(product: ProductListing) {
+		const existing = this.#items.find((item) => item.product.id === product.id);
+		if (existing) {
+			existing.quantity += 1;
 		} else {
 			this.#items.push({ product, quantity: 1 });
 		}
+		this.#persist();
 	}
 
-	async removeItem(productId: number) {
+	removeItem(productId: number) {
 		this.#items = this.#items.filter((item) => item.product.id !== productId);
+		this.#persist();
 	}
 
-	async updateQuantity(productId: number, quantity: number) {
+	updateQuantity(productId: number, quantity: number) {
+		if (quantity <= 0) {
+			this.removeItem(productId);
+			return;
+		}
 		const item = this.#items.find((item) => item.product.id === productId);
 		if (item) {
 			item.quantity = quantity;
-			if (item.quantity <= 0) {
-				await this.removeItem(productId);
-			}
+			this.#persist();
 		}
+	}
+
+	#persist() {
+		if (browser) localStorage.setItem('cart', JSON.stringify(this.#items));
 	}
 }
 

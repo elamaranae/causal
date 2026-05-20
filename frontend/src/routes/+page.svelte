@@ -1,58 +1,33 @@
 <script lang="ts">
-	import { cart } from '$lib/cart.svelte';
-	import { categories } from '$lib/categories.svelte';
-	import { ENDPOINTS, apiFetch } from '$lib/api/config';
-	import type { ProductListing, Page } from '$lib/types';
+	import { goto } from '$app/navigation';
 	import type { PageProps } from './$types';
-	import { onMount } from 'svelte';
 
 	let { data }: PageProps = $props();
 
-	let filteredPage = $state<Page<ProductListing> | null>(null);
-	let loading = $state(false);
-	let currentPage = $state(1);
+	let topLevel = $derived(data.categories.filter((c) => !c.parentId));
 
-	let products = $derived(filteredPage ? filteredPage.content : data.products);
-	let showPagination = $derived(filteredPage !== null && filteredPage.totalPages > 1);
+	function childrenOf(parentId: number) {
+		return data.categories.filter((c) => c.parentId === parentId);
+	}
 
 	let heading = $derived(
-		categories.selectedId !== null
-			? categories.categories.find((c) => c.id === categories.selectedId)?.name ?? 'Products'
+		data.categoryId !== null
+			? (data.categories.find((c) => c.id === data.categoryId)?.name ?? 'Products')
 			: 'Trending'
 	);
 
-	onMount(() => {
-		categories.load();
-	});
-
-	$effect(() => {
-		const id = categories.selectedId;
-		if (id === null) {
-			filteredPage = null;
-			currentPage = 1;
-		} else {
-			fetchFiltered(id, 1);
-		}
-	});
-
-	async function fetchFiltered(categoryId: number, page: number) {
-		loading = true;
-		currentPage = page;
-		const response = await apiFetch(ENDPOINTS.PRODUCTS.FILTER(categoryId, page));
-		if (response.ok) {
-			filteredPage = await response.json();
-		}
-		loading = false;
+	function selectCategory(id: number | null) {
+		goto(id === null ? '/' : `/?category=${id}`);
 	}
 
 	function goToPage(page: number) {
-		if (categories.selectedId !== null) {
-			fetchFiltered(categories.selectedId, page);
+		if (data.categoryId !== null) {
+			goto(`/?category=${data.categoryId}&page=${page}`);
 		}
 	}
 
 	function getCategoryName(categoryId: number): string | undefined {
-		return categories.categories.find((c) => c.id === categoryId)?.name;
+		return data.categories.find((c) => c.id === categoryId)?.name;
 	}
 </script>
 
@@ -62,22 +37,22 @@
 		<p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Categories</p>
 		<nav class="flex flex-col gap-0.5">
 			<button
-				class="text-left text-sm py-1.5 px-2 rounded transition-colors {categories.selectedId === null ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'} cursor-pointer"
-				onclick={() => categories.select(null)}
+				class="text-left text-sm py-1.5 px-2 rounded transition-colors {data.categoryId === null ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'} cursor-pointer"
+				onclick={() => selectCategory(null)}
 			>
 				All
 			</button>
-			{#each categories.topLevel as cat (cat.id)}
+			{#each topLevel as cat (cat.id)}
 				<button
-					class="text-left text-sm py-1.5 px-2 rounded transition-colors {categories.selectedId === cat.id ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'} cursor-pointer"
-					onclick={() => categories.select(cat.id)}
+					class="text-left text-sm py-1.5 px-2 rounded transition-colors {data.categoryId === cat.id ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'} cursor-pointer"
+					onclick={() => selectCategory(cat.id)}
 				>
 					{cat.name}
 				</button>
-				{#each categories.childrenOf(cat.id) as child (child.id)}
+				{#each childrenOf(cat.id) as child (child.id)}
 					<button
-						class="text-left text-[13px] py-1 pl-5 pr-2 rounded transition-colors {categories.selectedId === child.id ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'} cursor-pointer"
-						onclick={() => categories.select(child.id)}
+						class="text-left text-[13px] py-1 pl-5 pr-2 rounded transition-colors {data.categoryId === child.id ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'} cursor-pointer"
+						onclick={() => selectCategory(child.id)}
 					>
 						{child.name}
 					</button>
@@ -87,19 +62,19 @@
 	</aside>
 
 	<!-- Mobile category bar -->
-	{#if categories.topLevel.length > 0}
+	{#if topLevel.length > 0}
 		<div class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-4 py-2 overflow-x-auto">
 			<div class="flex gap-2">
 				<button
-					class="shrink-0 text-xs font-medium py-1.5 px-3 rounded-full transition-colors {categories.selectedId === null ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'} cursor-pointer"
-					onclick={() => categories.select(null)}
+					class="shrink-0 text-xs font-medium py-1.5 px-3 rounded-full transition-colors {data.categoryId === null ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'} cursor-pointer"
+					onclick={() => selectCategory(null)}
 				>
 					All
 				</button>
-				{#each categories.categories as cat (cat.id)}
+				{#each data.categories as cat (cat.id)}
 					<button
-						class="shrink-0 text-xs font-medium py-1.5 px-3 rounded-full transition-colors {categories.selectedId === cat.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'} cursor-pointer"
-						onclick={() => categories.select(cat.id)}
+						class="shrink-0 text-xs font-medium py-1.5 px-3 rounded-full transition-colors {data.categoryId === cat.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'} cursor-pointer"
+						onclick={() => selectCategory(cat.id)}
 					>
 						{cat.name}
 					</button>
@@ -113,28 +88,24 @@
 		<div class="mb-8">
 			<h1 class="text-2xl font-bold tracking-tight text-slate-900">{heading}</h1>
 			<p class="mt-1 text-sm text-slate-500">
-				{#if categories.selectedId === null}
+				{#if data.categoryId === null}
 					Our most popular products right now
-				{:else if filteredPage}
-					{filteredPage.totalElements} product{filteredPage.totalElements !== 1 ? 's' : ''} in {heading.toLowerCase()}
+				{:else if data.pagination}
+					{data.pagination.totalElements} product{data.pagination.totalElements !== 1 ? 's' : ''} in {heading.toLowerCase()}
 				{:else}
 					Browsing {heading.toLowerCase()}
 				{/if}
 			</p>
 		</div>
 
-		{#if loading}
-			<div class="text-center py-16">
-				<p class="text-slate-400">Loading...</p>
-			</div>
-		{:else if products.length === 0}
+		{#if data.products.length === 0}
 			<div class="text-center py-16">
 				<p class="text-slate-400">No products found.</p>
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-				{#each products as product (product.id)}
-					<div class="group flex flex-col bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+				{#each data.products as product (product.id)}
+					<a href="/products/{product.id}" class="group flex flex-col bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
 						<div class="aspect-square bg-slate-100 overflow-hidden">
 							{#if product.primaryThumbnailUrl}
 								<img
@@ -152,36 +123,31 @@
 						</div>
 						<div class="p-4 flex flex-col gap-2 flex-1">
 							<h3 class="text-sm font-medium text-slate-900">{product.name}</h3>
-							{#if getCategoryName(product.categoryId)}
-								<span class="text-xs text-slate-400">{getCategoryName(product.categoryId)}</span>
-							{/if}
-							<div class="mt-auto pt-3">
-								<button
-									class="w-full text-center text-sm font-medium py-2 px-4 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-									onclick={() => cart.addItem(product)}
-								>
-									Add to Cart
-								</button>
+							<div class="flex items-center justify-between">
+								{#if getCategoryName(product.categoryId)}
+									<span class="text-xs text-slate-400">{getCategoryName(product.categoryId)}</span>
+								{/if}
+								<span class="text-sm font-medium text-slate-900">$99.99</span>
 							</div>
 						</div>
-					</div>
+					</a>
 				{/each}
 			</div>
 
 			<!-- Pagination -->
-			{#if showPagination && filteredPage}
+			{#if data.pagination && data.pagination.totalPages > 1}
 				<div class="mt-8 flex items-center justify-center gap-2">
 					<button
 						class="px-3 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-						disabled={filteredPage.first}
-						onclick={() => goToPage(currentPage - 1)}
+						disabled={data.pagination.first}
+						onclick={() => goToPage(data.currentPage - 1)}
 					>
 						Previous
 					</button>
 
-					{#each Array(filteredPage.totalPages) as _, i}
+					{#each Array(data.pagination.totalPages) as _, i}
 						<button
-							class="w-9 h-9 text-sm rounded-md transition-colors cursor-pointer {currentPage === i + 1 ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'}"
+							class="w-9 h-9 text-sm rounded-md transition-colors cursor-pointer {data.currentPage === i + 1 ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'}"
 							onclick={() => goToPage(i + 1)}
 						>
 							{i + 1}
@@ -190,8 +156,8 @@
 
 					<button
 						class="px-3 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-						disabled={filteredPage.last}
-						onclick={() => goToPage(currentPage + 1)}
+						disabled={data.pagination.last}
+						onclick={() => goToPage(data.currentPage + 1)}
 					>
 						Next
 					</button>

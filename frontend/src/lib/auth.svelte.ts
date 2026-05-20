@@ -1,56 +1,43 @@
 import { browser } from '$app/environment';
 import type { User } from './types';
-import { ENDPOINTS, apiFetch } from './api/config';
+import { apiFetch, urls } from './api';
 
 class AuthState {
 	user = $state<User | null>(browser ? JSON.parse(localStorage.getItem('user') || 'null') : null);
-	isAuthenticated = $state<boolean>(browser ? localStorage.getItem('isAuthenticated') === 'true' : false);
+
+	get isAuthenticated(): boolean {
+		return this.user !== null;
+	}
 
 	async fetchUser() {
 		try {
-			const response = await apiFetch(ENDPOINTS.AUTH.ME);
-			if (response.ok) {
-				const userData = await response.json();
-				this.user = userData;
-				this.isAuthenticated = true;
-				if (browser) {
-					localStorage.setItem('user', JSON.stringify(userData));
-					localStorage.setItem('isAuthenticated', 'true');
-				}
+			const res = await apiFetch(urls.auth.me);
+			if (res.ok) {
+				this.user = await res.json();
+				if (browser) localStorage.setItem('user', JSON.stringify(this.user));
 			} else {
-				this.clearLocal();
+				this.clear();
 			}
-		} catch (error) {
-			console.error('Failed to fetch user:', error);
-			this.clearLocal();
+		} catch {
+			this.clear();
 		}
 	}
 
 	async onLoginSuccess() {
-		this.isAuthenticated = true;
-		if (browser) {
-			localStorage.setItem('isAuthenticated', 'true');
-		}
 		await this.fetchUser();
 	}
 
 	async logout() {
 		try {
-			await apiFetch(ENDPOINTS.AUTH.LOGOUT, { method: 'POST' });
-		} catch (error) {
-			console.error('Failed to call logout endpoint:', error);
+			await apiFetch(urls.auth.logout, { method: 'POST' });
 		} finally {
-			this.clearLocal();
+			this.clear();
 		}
 	}
 
-	private clearLocal() {
+	private clear() {
 		this.user = null;
-		this.isAuthenticated = false;
-		if (browser) {
-			localStorage.removeItem('user');
-			localStorage.removeItem('isAuthenticated');
-		}
+		if (browser) localStorage.removeItem('user');
 	}
 }
 

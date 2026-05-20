@@ -34,7 +34,7 @@ public class Sku {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "media_id")
-  private ProductMedia media;
+  private Media media;
 
   @Column(name = "product_id", insertable = false, updatable = false)
   private Long productId;

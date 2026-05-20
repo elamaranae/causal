@@ -31,6 +31,7 @@ public class Product {
   private String description;
   private String primaryThumbnailUrl;
   private long categoryId;
+  private String primaryVariantKey;
 
   @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<Sku> skus = new ArrayList<Sku>();
