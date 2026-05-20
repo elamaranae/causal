@@ -7,5 +7,6 @@ public record SkuResponse(
     boolean isDefault,
     Map<String, Object> attributes,
     Map<String, Object> variantAttributes,
-    MediaResponse media
+    MediaResponse media,
+    PriceResponse price
 ) {};

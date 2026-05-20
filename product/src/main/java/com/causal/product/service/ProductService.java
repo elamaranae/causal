@@ -9,30 +9,37 @@ import org.springframework.web.server.ResponseStatusException;
 import com.causal.product.dto.response.ProductListingResponse;
 import com.causal.product.dto.response.ProductShowResponse;
 import com.causal.product.mapper.ProductMapper;
+import com.causal.product.repository.PriceRepository;
 import com.causal.product.repository.ProductRepository;
 import com.causal.product.model.Product;
+import com.causal.product.model.Price;
 
 @Service
 public class ProductService {
-  private final ProductRepository repository;
+  private final ProductRepository productRepository;
+  private final PriceRepository priceRepository;
   private final ProductMapper mapper;
 
-  public ProductService(ProductRepository repository, ProductMapper mapper) {
-    this.repository = repository;
+  public ProductService(ProductRepository productRepository, ProductMapper mapper, PriceRepository priceRepository) {
+    this.productRepository = productRepository;
+    this.priceRepository = priceRepository;
     this.mapper = mapper;
   }
 
   public ProductShowResponse getProduct(Long id) {
-    Product product = repository.findWithSkusById(id)
+    Product product = productRepository.findWithSkusById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+
+    List<Price> prices = priceRepository.findBySkuIdInAndPriceCurrency(product.getSkus().stream().map(s -> s.getId()).toList(), "USD");
+
     return mapper.productShowResponseFrom(product);
   }
 
   public List<ProductListingResponse> getTrendingProducts() {
-    return repository.findTop5By().stream().map(mapper::productListingResponseFrom).toList();
+    return productRepository.findTop5By().stream().map(mapper::productListingResponseFrom).toList();
   }
 
   public Page<ProductListingResponse> filterProducts(Long categoryId, Pageable pageable) {
-    return repository.findByCategoryId(categoryId, pageable).map(mapper::productListingResponseFrom);
+    return productRepository.findByCategoryId(categoryId, pageable).map(mapper::productListingResponseFrom);
   }
 }

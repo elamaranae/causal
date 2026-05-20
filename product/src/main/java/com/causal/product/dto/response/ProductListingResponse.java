@@ -4,5 +4,6 @@ public record ProductListingResponse(
     long id,
     String name,
     String primaryThumbnailUrl,
-    long categoryId
+    long categoryId,
+    PriceResponse price
 ) {};
