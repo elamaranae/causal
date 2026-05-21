@@ -1,0 +1,30 @@
+services:
+  cart-app:
+    image: cart:latest
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://cart-db:5432/cartdb
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+    depends_on:
+      cart-db:
+        condition: service_healthy
+  cart-db:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_DB=cartdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - cart-db-data:/var/lib/postgresql
+
+volumes:
+  cart-db-data:
