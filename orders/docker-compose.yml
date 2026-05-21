@@ -1,0 +1,30 @@
+services:
+  orders-app:
+    image: orders:latest
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://orders-db:5432/ordersdb
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+    depends_on:
+      orders-db:
+        condition: service_healthy
+  orders-db:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_DB=ordersdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - orders-db-data:/var/lib/postgresql
+
+volumes:
+  orders-db-data:
