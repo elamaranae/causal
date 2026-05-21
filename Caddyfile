@@ -38,6 +38,11 @@
 		reverse_proxy /auth/* identity-app:8080
 
 		@products path /products /products/*
-		reverse_proxy @products host.docker.internal:8080
+		reverse_proxy @products product-app:8080
+		# reverse_proxy @products host.docker.internal:8080
+
+		@cart path /cart /cart/*
+		reverse_proxy @cart host.docker.internal:8080
+		# reverse_proxy @products cart-app:8080
 	}
 }
