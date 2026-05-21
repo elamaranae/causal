@@ -5,5 +5,5 @@ public record ProductListingResponse(
     String name,
     String primaryThumbnailUrl,
     long categoryId,
-    PriceResponse price
+    SkuResponseWithoutMedia defaultSku
 ) {};

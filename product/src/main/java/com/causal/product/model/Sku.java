@@ -32,7 +32,6 @@ import lombok.Setter;
 public class Sku {
   @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
-  private boolean isDefault;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "product_id")

@@ -127,7 +127,7 @@
 								{#if getCategoryName(product.categoryId)}
 									<span class="text-xs text-slate-400">{getCategoryName(product.categoryId)}</span>
 								{/if}
-								<span class="text-sm font-medium text-slate-900">$99.99</span>
+								<span class="text-sm font-medium text-slate-900">${product.defaultSku.price.priceAmount.toFixed(2)}</span>
 							</div>
 						</div>
 					</a>

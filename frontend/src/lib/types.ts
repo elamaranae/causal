@@ -1,8 +1,21 @@
+export interface Price {
+	priceCurrency: string;
+	priceAmount: number;
+}
+
+export interface DefaultSku {
+	id: number;
+	attributes: Record<string, string>;
+	variantAttributes: Record<string, string>;
+	price: Price;
+}
+
 export interface ProductListing {
 	id: number;
 	name: string;
 	primaryThumbnailUrl: string | null;
 	categoryId: number;
+	defaultSku: DefaultSku;
 }
 
 export interface MediaItem {
@@ -14,10 +27,10 @@ export interface MediaItem {
 
 export interface Sku {
 	id: number;
-	isDefault: boolean;
 	attributes: Record<string, string>;
 	variantAttributes: Record<string, string>;
 	media: { id: number; media: MediaItem[] } | null;
+	price: Price;
 }
 
 export interface ProductShow {
@@ -25,7 +38,9 @@ export interface ProductShow {
 	name: string;
 	primaryThumbnailUrl: string | null;
 	categoryId: number;
+	primaryVariantKey: string;
 	attributes: Record<string, string>;
+	defaultSkuId: number;
 	skus: Sku[];
 }
 

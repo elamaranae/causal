@@ -12,6 +12,8 @@ import com.causal.product.model.Product;
 public interface ProductRepository extends JpaRepository<Product, Long> {
   @EntityGraph(attributePaths = {"skus", "skus.media"})
   public Optional<Product> findWithSkusById(Long id);
-  public List<Product> findTop5By();
-  public Page<Product> findByCategoryId(Long categoryId, Pageable pageable);
+  @EntityGraph(attributePaths = {"defaultSku"})
+  public List<Product> findFirst5ByOrderByIdAsc();
+  @EntityGraph(attributePaths = {"defaultSku"})
+  public Page<Product> findByCategoryIdOrderByIdAsc(Long categoryId, Pageable pageable);
 }

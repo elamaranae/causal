@@ -7,7 +7,7 @@
 	let { data }: PageProps = $props();
 	let product = $derived(data.product);
 
-	// Extract all variant attribute keys and their unique values
+	// Extract variant keys, with primaryVariantKey first
 	let variantKeys = $derived.by(() => {
 		if (!product) return [];
 		const keys = new Set<string>();
@@ -16,7 +16,15 @@
 				keys.add(key);
 			}
 		}
-		return Array.from(keys);
+		const arr = Array.from(keys);
+		if (product.primaryVariantKey) {
+			const idx = arr.indexOf(product.primaryVariantKey);
+			if (idx > 0) {
+				arr.splice(idx, 1);
+				arr.unshift(product.primaryVariantKey);
+			}
+		}
+		return arr;
 	});
 
 	let variantOptions = $derived.by(() => {
@@ -40,7 +48,7 @@
 
 	$effect(() => {
 		if (!product) return;
-		const defaultSku = product.skus.find((s) => s.isDefault) ?? product.skus[0];
+		const defaultSku = product.skus.find((s) => s.id === product.defaultSkuId) ?? product.skus[0];
 		if (defaultSku) {
 			selection = { ...defaultSku.variantAttributes };
 		}
@@ -189,7 +197,13 @@
 							<h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 leading-tight">
 								{product.name}
 							</h1>
-							<p class="mt-4 text-xl text-slate-900 tracking-tight">$99.99</p>
+							<p class="mt-4 text-xl tracking-tight h-7">
+							{#if selectedSku}
+								<span class="text-slate-900">${selectedSku.price.priceAmount.toFixed(2)}</span>
+							{:else}
+								<span class="text-red-500">Unavailable</span>
+							{/if}
+						</p>
 						</header>
 
 						<!-- Divider -->
@@ -239,12 +253,18 @@
 										: 'bg-slate-100 text-slate-400 cursor-not-allowed'}"
 								disabled={!selectedSku}
 								onclick={() => {
-									if (product) {
+									if (product && selectedSku) {
 										cart.addItem({
 											id: product.id,
 											name: product.name,
 											primaryThumbnailUrl: product.primaryThumbnailUrl,
-											categoryId: product.categoryId
+											categoryId: product.categoryId,
+											defaultSku: {
+												id: selectedSku.id,
+												attributes: selectedSku.attributes,
+												variantAttributes: selectedSku.variantAttributes,
+												price: selectedSku.price
+											}
 										});
 									}
 								}}

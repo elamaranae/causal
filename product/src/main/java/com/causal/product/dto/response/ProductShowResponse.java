@@ -10,5 +10,6 @@ public record ProductShowResponse(
     long categoryId,
     String primaryVariantKey,
     Map<String, Object> attributes,
+    long defaultSkuId,
     List<SkuResponse> skus
 ) {};
