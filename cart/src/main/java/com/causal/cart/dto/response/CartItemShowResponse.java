@@ -1,5 +1,7 @@
 package com.causal.cart.dto.response;
 
 public record CartItemShowResponse(
-    long id
+    Long id,
+    Long skuId,
+    Integer quantity
 ) {};

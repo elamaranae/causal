@@ -1,5 +1,6 @@
 package com.causal.identity.auth;
 
+import com.causal.identity.user.User;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -100,14 +101,15 @@ public class JwtUtil {
                 .build();
     }
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(User user) {
         try {
             JWSSigner signer = new RSASSASigner(getPrivateKey());
 
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                    .subject(userDetails.getUsername())
+                    .subject(user.getId().toString())
                     .issueTime(new Date())
                     .expirationTime(new Date(System.currentTimeMillis() + jwtExpiration))
+                    .claim("email", user.getEmail())
                     .build();
 
             SignedJWT signedJWT = new SignedJWT(

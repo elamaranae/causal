@@ -65,8 +65,7 @@ public class AuthController {
 
         user = userRepository.save(user);
 
-        final UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-        final String jwt = jwtUtil.generateToken(userDetails);
+        final String jwt = jwtUtil.generateToken(user);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
         addAuthCookies(response, jwt, refreshToken.getToken());
@@ -84,8 +83,7 @@ public class AuthController {
         User user = userRepository.findByEmail(loginRequest.email())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        final UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.email());
-        final String jwt = jwtUtil.generateToken(userDetails);
+        final String jwt = jwtUtil.generateToken(user);
 
         // Delete old refresh token if exists and create new one
         refreshTokenService.deleteByUserId(user.getId());
@@ -114,7 +112,7 @@ public class AuthController {
                     User user = refreshToken.getUser();
                     refreshTokenService.deleteByUserId(user.getId());
                     RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user.getId());
-                    String token = jwtUtil.generateToken(userDetailsService.loadUserByUsername(user.getEmail()));
+                    String token = jwtUtil.generateToken(user);
                     addAuthCookies(response, token, newRefreshToken.getToken());
                     return ResponseEntity.ok(Map.of("accessToken", token, "refreshToken", newRefreshToken.getToken()));
                 })
@@ -134,8 +132,7 @@ public class AuthController {
             return ResponseEntity.status(401).build();
         }
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-        String jwt = jwtUtil.generateToken(userDetails);
+        String jwt = jwtUtil.generateToken(user);
         return ResponseEntity.ok()
                 .header("X-Forwarded-Authorization", "Bearer " + jwt)
                 .build();

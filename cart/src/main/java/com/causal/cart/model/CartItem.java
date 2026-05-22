@@ -26,12 +26,15 @@ public class CartItem {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "cart_id")
+  @Setter
   private Cart cart;
 
   @Column(name = "sku_id", nullable = false)
+  @Setter
   private Long skuId;
 
   @Column(nullable = false)
+  @Setter
   private Integer quantity = 1;
 
   @CreationTimestamp
