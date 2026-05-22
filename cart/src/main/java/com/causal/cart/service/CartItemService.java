@@ -36,6 +36,12 @@ public class CartItemService {
     Cart cart = cartService.getOrCreateCart();
     return mapper.cartItemShowResponseFrom(createItemFromRequest(request, cart));
   }
+
+  public void deleteCartItem(Long id) {
+    Cart cart = cartService.getOrCreateCart();
+    CartItem cartItem = cartItemRepository.findByIdAndCartId(id, cart.getId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cart Item not found"));
+    cartItemRepository.delete(cartItem);
+  }
   
   public CartItem createItemFromRequest(CartItemCreateRequest request, Cart cart) {
     CartItem item = new CartItem();

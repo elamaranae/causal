@@ -27,7 +27,7 @@ public class CartService {
   }
 
   public CartShowResponse getCurrentUserCart() {
-    Cart cart = getOrCreateCart();
+    Cart cart = getOrCreateCartWithItems();
     return mapper.cartShowResponseFrom(cart);
   }
 
@@ -39,8 +39,12 @@ public class CartService {
 
   @Transactional
   public Cart getOrCreateCart() {
-    Cart cart = cartRepository.findByUserId(currentUser.id()).orElseGet(() -> createCart());
-    return cart;
+      return cartRepository.findByUserId(currentUser.id()).orElseGet(this::createCart);
+  }
+
+  @Transactional
+  public Cart getOrCreateCartWithItems() {
+      return cartRepository.findWithItemsByUserId(currentUser.id()).orElseGet(this::createCart);
   }
 
   @Transactional
