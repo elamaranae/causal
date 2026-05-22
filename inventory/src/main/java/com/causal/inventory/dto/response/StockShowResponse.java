@@ -1,9 +1,9 @@
 package com.causal.inventory.dto.response;
 
-public record InventoryItemShowResponse(
+public record StockShowResponse(
         long id,
         long skuId,
-        long warehouseId,
+        long productId,
         int quantity
 ) {
 }

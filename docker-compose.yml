@@ -2,6 +2,7 @@ include:
   - identity/docker-compose.yml
   - product/docker-compose.yml
   - cart/docker-compose.yml
+  - inventory/docker-compose.yml
 
 services:
   gateway:
