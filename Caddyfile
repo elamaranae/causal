@@ -46,5 +46,11 @@
 		@cart path /cart /cart/*
 		reverse_proxy @cart host.docker.internal:8080
 		# reverse_proxy @products cart-app:8080
+
+		@inventory path /inventory /inventory/*
+		reverse_proxy @inventory inventory-app:8080
+		# reverse_proxy @inventory host.docker.internal:8080
+
+		respond 404
 	}
 }
