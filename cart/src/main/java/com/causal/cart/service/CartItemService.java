@@ -8,6 +8,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.causal.cart.config.CurrentUser;
 import com.causal.cart.dto.request.CartItemCreateRequest;
+import com.causal.cart.dto.request.CartItemPatchRequest;
 import com.causal.cart.dto.response.CartItemShowResponse;
 import com.causal.cart.dto.response.CartShowResponse;
 import com.causal.cart.mapper.CartMapper;
@@ -37,10 +38,22 @@ public class CartItemService {
     return mapper.cartItemShowResponseFrom(createItemFromRequest(request, cart));
   }
 
+  @Transactional
+  public CartItemShowResponse updateCartItem(Long id, CartItemPatchRequest request) {
+    CartItem cartItem = getCartItem(id);
+    cartItem.setQuantity(request.quantity());
+    return mapper.cartItemShowResponseFrom(cartItem);
+  }
+
   public void deleteCartItem(Long id) {
+    CartItem cartItem = getCartItem(id);
+    cartItemRepository.delete(cartItem);
+  }
+
+  public CartItem getCartItem(Long id) {
     Cart cart = cartService.getOrCreateCart();
     CartItem cartItem = cartItemRepository.findByIdAndCartId(id, cart.getId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cart Item not found"));
-    cartItemRepository.delete(cartItem);
+    return cartItem;
   }
   
   public CartItem createItemFromRequest(CartItemCreateRequest request, Cart cart) {
