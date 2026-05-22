@@ -54,7 +54,7 @@ jib {
         image = "eclipse-temurin:25-jre"
         platforms {
             platform {
-                architecture = "amd64"
+                architecture = "arm64"
                 os = "linux"
             }
         }
@@ -72,8 +72,5 @@ jib {
         ports = listOf("8080")
         mainClass = "com.causal.profile.ProfileApplication"
         creationTime.set("USE_CURRENT_TIMESTAMP")
-    }
-    dockerClient {
-      executable = "/opt/homebrew/bin/podman"
     }
 }
