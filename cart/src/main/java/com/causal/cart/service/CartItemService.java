@@ -19,6 +19,8 @@ import com.causal.cart.repository.CartRepository;
 
 @Service
 public class CartItemService {
+  private static final int MAX_CART_ITEMS = 100;
+
   private final CartRepository cartRepository;
   private final CartItemRepository cartItemRepository;
   private final CartMapper mapper;
@@ -35,6 +37,10 @@ public class CartItemService {
 
   public CartItemShowResponse createCartItem(CartItemCreateRequest request) {
     Cart cart = cartService.getOrCreateCart();
+    long itemCount = cartItemRepository.countByCartId(cart.getId());
+    if (itemCount >= MAX_CART_ITEMS) {
+      throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Cart cannot exceed " + MAX_CART_ITEMS + " items");
+    }
     return mapper.cartItemShowResponseFrom(createItemFromRequest(request, cart));
   }
 

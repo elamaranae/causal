@@ -42,7 +42,7 @@ public class JwtUtil {
     private long jwtExpiration;
 
     public String extractUsername(String token) {
-        return parseClaims(token).getSubject();
+        return (String) parseClaims(token).getClaim("email");
     }
 
     public Date extractExpiration(String token) {

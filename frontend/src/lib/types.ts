@@ -1,72 +1,103 @@
 export interface Price {
-	priceCurrency: string;
-	priceAmount: number;
+  priceCurrency: string;
+  priceAmount: number;
 }
 
 export interface DefaultSku {
-	id: number;
-	attributes: Record<string, string>;
-	variantAttributes: Record<string, string>;
-	price: Price;
+  id: number;
+  attributes: Record<string, string>;
+  variantAttributes: Record<string, string>;
+  price: Price;
 }
 
 export interface ProductListing {
-	id: number;
-	name: string;
-	primaryThumbnailUrl: string | null;
-	categoryId: number;
-	defaultSku: DefaultSku;
+  id: number;
+  name: string;
+  primaryThumbnailUrl: string | null;
+  categoryId: number;
+  defaultSku: DefaultSku;
 }
 
 export interface MediaItem {
-	url: string;
-	type: string;
-	primary: boolean;
-	thumbnail: string;
+  url: string;
+  type: string;
+  primary: boolean;
+  thumbnail: string;
 }
 
 export interface Sku {
-	id: number;
-	attributes: Record<string, string>;
-	variantAttributes: Record<string, string>;
-	media: { id: number; media: MediaItem[] } | null;
-	price: Price;
+  id: number;
+  attributes: Record<string, string>;
+  variantAttributes: Record<string, string>;
+  media: { id: number; media: MediaItem[] } | null;
+  price: Price;
 }
 
 export interface ProductShow {
-	id: number;
-	name: string;
-	primaryThumbnailUrl: string | null;
-	categoryId: number;
-	primaryVariantKey: string;
-	attributes: Record<string, string>;
-	defaultSkuId: number;
-	skus: Sku[];
+  id: number;
+  name: string;
+  description: string | null;
+  primaryThumbnailUrl: string | null;
+  categoryId: number;
+  primaryVariantKey: string;
+  attributes: Record<string, string>;
+  defaultSkuId: number;
+  skus: Sku[];
 }
 
 export interface ProductCategory {
-	id: number;
-	name: string;
-	description: string | null;
-	parentId: number | null;
+  id: number;
+  name: string;
+  description: string | null;
+  parentId: number | null;
 }
 
 export interface Page<T> {
-	content: T[];
-	totalPages: number;
-	totalElements: number;
-	number: number;
-	size: number;
-	first: boolean;
-	last: boolean;
+  content: T[];
+  totalPages: number;
+  totalElements: number;
+  number: number;
+  size: number;
+  first: boolean;
+  last: boolean;
+}
+
+export interface SkuProduct {
+  id: number;
+  name: string;
+  description: string;
+  categoryId: number;
+}
+
+export interface SkuDetail {
+  id: number;
+  attributes: Record<string, string>;
+  variantAttributes: Record<string, string>;
+  media: { id: number; media: MediaItem[] } | null;
+  price: Price;
+  product: SkuProduct;
+}
+
+export interface ApiCartItem {
+  id: number;
+  skuId: number;
+  quantity: number;
+}
+
+export interface ApiCart {
+  id: number;
+  userId: number;
+  items: ApiCartItem[];
 }
 
 export interface CartItem {
-	product: ProductListing;
-	quantity: number;
+  cartItemId: number;
+  skuId: number;
+  quantity: number;
+  sku: SkuDetail;
 }
 
 export interface User {
-	id: string;
-	email: string;
+  id: string;
+  email: string;
 }

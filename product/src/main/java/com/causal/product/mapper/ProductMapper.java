@@ -7,6 +7,8 @@ import com.causal.product.dto.response.PriceResponse;
 import com.causal.product.dto.response.ProductListingResponse;
 import com.causal.product.dto.response.ProductShowResponse;
 import com.causal.product.dto.response.SkuResponse;
+import com.causal.product.dto.response.SkuShowResponse;
+import com.causal.product.dto.response.ProductMinimalResponse;
 import com.causal.product.dto.response.MediaResponse;
 import com.causal.product.model.Price;
 import com.causal.product.model.Product;
@@ -19,7 +21,9 @@ public interface ProductMapper {
   ProductShowResponse productShowResponseFrom(Product product);
 
   SkuResponse skuResponseFrom(Sku sku);
+  SkuShowResponse skuShowResponseFrom(Sku sku);
 
+  ProductMinimalResponse productMinimalResponseFrom(Product product);
   PriceResponse priceResponseFrom(Price price);
   MediaResponse mediaResponseFrom(Media media);
 }

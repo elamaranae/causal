@@ -6,6 +6,7 @@ import java.util.Map;
 public record ProductShowResponse(
     long id,
     String name,
+    String description,
     String primaryThumbnailUrl,
     long categoryId,
     String primaryVariantKey,

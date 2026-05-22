@@ -7,4 +7,5 @@ import com.causal.cart.model.CartItem;
 
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
   public Optional<CartItem> findByIdAndCartId(Long id, Long cartId);
+  public long countByCartId(Long cartId);
 }
