@@ -1,0 +1,2010 @@
+-- Product Database Seed
+-- 20 categories, 150 products each, 1-10 SKU variants per product
+-- Each SKU has 1-5 media images, prices in 7 major currencies
+
+SET statement_timeout = 0;
+SET client_encoding = 'UTF8';
+SELECT pg_catalog.set_config('search_path', 'public', false);
+
+-- Clear existing data (order matters for FK constraints)
+TRUNCATE prices, reviews, skus, product_media, products, product_categories, vendors RESTART IDENTITY CASCADE;
+
+-- ============================================================
+-- VENDORS
+-- ============================================================
+INSERT INTO vendors (id, name, description, logo) VALUES
+(1, 'TechVision Electronics', 'Leading consumer electronics manufacturer', 'https://logo.clearbit.com/samsung.com'),
+(2, 'HomeHaven', 'Premium home and kitchen products', 'https://logo.clearbit.com/ikea.com'),
+(3, 'SportEdge', 'High-performance sports equipment and apparel', 'https://logo.clearbit.com/nike.com'),
+(4, 'StyleCraft', 'Contemporary fashion and accessories', 'https://logo.clearbit.com/zara.com'),
+(5, 'GreenLeaf Naturals', 'Organic health and beauty products', 'https://logo.clearbit.com/lush.com'),
+(6, 'BookBound Publishing', 'Independent book publisher and distributor', 'https://logo.clearbit.com/penguin.com'),
+(7, 'PetPals', 'Premium pet supplies and accessories', 'https://logo.clearbit.com/chewy.com'),
+(8, 'AutoPrime', 'Automotive parts and accessories', 'https://logo.clearbit.com/autozone.com'),
+(9, 'KidZone', 'Quality toys and children products', 'https://logo.clearbit.com/lego.com'),
+(10, 'OfficeMax Pro', 'Office supplies and business equipment', 'https://logo.clearbit.com/staples.com');
+
+SELECT setval('vendors_id_seq', 10);
+
+-- ============================================================
+-- PRODUCT CATEGORIES (20 categories with subcategories)
+-- ============================================================
+INSERT INTO product_categories (id, name, description, parent_id) VALUES
+(1, 'Electronics', 'Consumer electronics and gadgets', NULL),
+(2, 'Smartphones', 'Mobile phones and accessories', 1),
+(3, 'Laptops & Computers', 'Portable and desktop computers', 1),
+(4, 'Audio & Headphones', 'Speakers, headphones, and audio equipment', 1),
+(5, 'Home & Kitchen', 'Home furnishing and kitchen essentials', NULL),
+(6, 'Kitchen Appliances', 'Cooking and food preparation appliances', 5),
+(7, 'Home Decor', 'Decorative items and furnishings', 5),
+(8, 'Bedding & Bath', 'Bedroom and bathroom essentials', 5),
+(9, 'Clothing & Fashion', 'Apparel and fashion accessories', NULL),
+(10, 'Men''s Clothing', 'Men''s apparel and accessories', 9),
+(11, 'Women''s Clothing', 'Women''s apparel and accessories', 9),
+(12, 'Shoes & Footwear', 'All types of footwear', 9),
+(13, 'Sports & Outdoors', 'Sporting goods and outdoor equipment', NULL),
+(14, 'Fitness Equipment', 'Home gym and fitness accessories', 13),
+(15, 'Outdoor Recreation', 'Camping, hiking, and outdoor gear', 13),
+(16, 'Health & Beauty', 'Personal care and beauty products', NULL),
+(17, 'Skincare', 'Face and body skincare products', 16),
+(18, 'Books & Media', 'Books, music, and digital media', NULL),
+(19, 'Toys & Games', 'Children''s toys, games, and puzzles', NULL),
+(20, 'Office & Stationery', 'Office supplies and stationery', NULL),
+(21, 'Automotive', 'Car parts and automotive accessories', NULL),
+(22, 'Pet Supplies', 'Pet food, toys, and accessories', NULL),
+(23, 'Watches & Jewelry', 'Watches, jewelry, and accessories', 9),
+(24, 'Gaming', 'Video games and gaming accessories', 1);
+
+SELECT setval('product_categories_id_seq', 24);
+
+-- ============================================================
+-- GENERATE ALL DATA VIA PLPGSQL
+-- ============================================================
+DO $$
+DECLARE
+    v_product_id BIGINT;
+    v_sku_id BIGINT;
+    v_media_id BIGINT;
+    v_cat_id INT;
+    v_prod_idx INT;
+    v_sku_count INT;
+    v_media_count INT;
+    v_sku_idx INT;
+    v_vendor_id INT;
+    v_base_price DECIMAL(19,4);
+    v_product_name TEXT;
+    v_product_desc TEXT;
+    v_sku_variant JSONB;
+    v_sku_thumb TEXT;
+    v_product_thumb TEXT;
+    v_primary_variant_key TEXT;
+    v_default_sku BIGINT;
+    v_effective_date TIMESTAMP;
+
+    v_color TEXT;
+    v_cat_images TEXT[];
+    v_img_pick TEXT;
+    v_size TEXT;
+    v_colors TEXT[] := ARRAY['Black', 'White', 'Navy', 'Red', 'Green', 'Blue', 'Gray', 'Silver', 'Gold', 'Rose Gold', 'Midnight', 'Forest Green', 'Ocean Blue', 'Burgundy', 'Charcoal'];
+    v_sizes TEXT[] := ARRAY['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    v_storage TEXT[] := ARRAY['64GB', '128GB', '256GB', '512GB', '1TB'];
+    v_currencies TEXT[] := ARRAY['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'INR'];
+    v_fx_rates DECIMAL[] := ARRAY[1.0, 0.92, 0.79, 149.50, 1.36, 1.53, 83.12];
+
+    -- Category-specific product names
+    v_cat_products TEXT[];
+
+BEGIN
+
+    -- ==========================================================
+    -- Category 1: Smartphones (cat_id=2)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Galaxy Ultra Pro', 'iPhone Max Plus', 'Pixel Pro XL', 'OnePlus Nitro', 'Xperia Elite',
+        'Nova Edge', 'Mate Infinity', 'Redmi Turbo', 'Find X Ultra', 'Reno Power',
+        'Moto Razor Edge', 'Zenfone Pro', 'Realme GT Neo', 'Vivo X Fold', 'Nord CE Ultra',
+        'Galaxy Flip Pro', 'iPhone SE Ultra', 'Pixel Fold', 'Nothing Phone Ultra', 'Poco Hyper',
+        'Galaxy Note Edge', 'iPhone Air', 'Pixel Mini', 'OnePlus Ace Pro', 'Xperia Compact',
+        'Nova Lite Pro', 'Mate X Ultra', 'Redmi Note Pro', 'Find N Ultra', 'Reno Ace',
+        'Moto Edge Ultra', 'Zenfone Flip', 'Realme Narzo Pro', 'Vivo V Ultra', 'Nord Lite',
+        'Galaxy S Ultra', 'iPhone Pro Max', 'Pixel XL Plus', 'OnePlus Nord Ultra', 'Xperia Pro',
+        'Nova Power', 'Mate Lite Pro', 'Redmi K Ultra', 'Find X Neo', 'Reno Ultra',
+        'Moto Stylus Pro', 'Zenfone Ultra', 'Realme X Pro', 'Vivo Y Ultra', 'Nord Power',
+        'Galaxy A Ultra', 'iPhone Mini Pro', 'Pixel Camera Phone', 'OnePlus Fold', 'Xperia Fold',
+        'Nova Ultra', 'Mate Pro Max', 'Redmi Ultra', 'Find Lite', 'Reno Fold',
+        'Moto Ultra Edge', 'Zenfone Max Pro', 'Realme GT Ultra', 'Vivo X Pro', 'Nord Ace',
+        'Galaxy Z Ultra', 'iPhone Ultra Pro', 'Pixel Lite', 'OnePlus Ultra', 'Xperia Ultra',
+        'Nova Fold', 'Mate Edge', 'Redmi Pro Max', 'Find X Pro', 'Reno Neo',
+        'Moto Power Ultra', 'Zenfone Lite Pro', 'Realme Pro Ultra', 'Vivo Fold', 'Nord Ultra',
+        'Galaxy Ace Pro', 'iPhone Fold', 'Pixel Ultra Pro', 'OnePlus Lite', 'Xperia Lite',
+        'Nova Pro Max', 'Mate Ultra Pro', 'Redmi Fold', 'Find Ultra', 'Reno Lite',
+        'Moto Fold Pro', 'Zenfone Edge', 'Realme Fold', 'Vivo Ultra Pro', 'Nord Fold',
+        'Galaxy Max Ultra', 'iPhone Edge', 'Pixel Power', 'OnePlus Edge Pro', 'Xperia Edge',
+        'Nova Mini Pro', 'Mate Fold Ultra', 'Redmi Edge', 'Find Fold', 'Reno Max',
+        'Moto Mini Ultra', 'Zenfone Power', 'Realme Edge', 'Vivo Edge Pro', 'Nord Mini',
+        'Galaxy Power Pro', 'iPhone Power', 'Pixel Edge Pro', 'OnePlus Mini', 'Xperia Mini',
+        'Nova Max Ultra', 'Mate Mini Pro', 'Redmi Mini', 'Find Mini', 'Reno Mini',
+        'Moto Max Pro', 'Zenfone Mini', 'Realme Mini Pro', 'Vivo Mini Ultra', 'Nord Max',
+        'Galaxy Mini Ultra', 'iPhone Nitro', 'Pixel Nitro', 'OnePlus Max Pro', 'Xperia Max',
+        'Nova Nitro', 'Mate Nitro', 'Redmi Nitro Pro', 'Find Nitro', 'Reno Nitro',
+        'Moto Nitro Ultra', 'Zenfone Nitro', 'Realme Nitro', 'Vivo Nitro Pro', 'Nord Nitro',
+        'Galaxy Nitro Pro', 'iPhone Turbo', 'Pixel Turbo Pro', 'OnePlus Turbo', 'Xperia Turbo',
+        'Nova Turbo Pro', 'Mate Turbo', 'Redmi Ace', 'Find Ace Pro', 'Reno Turbo'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9',
+        'https://images.unsplash.com/photo-1592899677112-901b65d9a9b0',
+        'https://images.unsplash.com/photo-1580910051074-3eb694886f1b',
+        'https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb',
+        'https://images.unsplash.com/photo-1565849904461-04a58ad377e0',
+        'https://images.unsplash.com/photo-1585060544812-6b45742d762f',
+        'https://images.unsplash.com/photo-1512054502232-10a0a035d672',
+        'https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2',
+        'https://images.unsplash.com/photo-1598327105666-5b89351aff97',
+        'https://images.unsplash.com/photo-1570891836654-d4961a7b6929',
+        'https://images.unsplash.com/photo-1567581935884-3349723552ca',
+        'https://images.unsplash.com/photo-1605236453806-6ff36851218e'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 10)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'storage';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Premium smartphone with advanced camera system, AMOLED display, and all-day battery life.',
+                '{"brand": "TechVision", "warranty": "2 years"}'::jsonb,
+                1, 2, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := v_colors[1 + floor(random() * array_length(v_colors, 1))::INT];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            v_sku_variant := jsonb_build_object('storage', v_storage[1 + ((v_sku_idx - 1) % array_length(v_storage, 1))], 'color', v_color);
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, v_sku_variant,
+                    jsonb_build_object('weight', (150 + floor(random() * 50))::TEXT || 'g', 'dimensions', '160x75x8mm'),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 299.99 + floor(random() * 900)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 2: Laptops & Computers (cat_id=3)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'ProBook Ultra 15', 'ZenBook Pro 14', 'ThinkPad X1 Carbon', 'MacBook Air M4', 'Surface Laptop Studio',
+        'Spectre x360', 'XPS 15 Pro', 'Gram 17 Ultra', 'Swift Edge 16', 'Yoga 9i Pro',
+        'ROG Zephyrus G16', 'Raider GE78', 'Legion Pro 7', 'Predator Helios 18', 'Omen 17 Ultra',
+        'Chromebook Plus', 'IdeaPad Slim 5', 'Inspiron 16 Pro', 'Pavilion Plus 14', 'VivoBook Pro',
+        'ProBook Enterprise', 'ZenBook Duo', 'ThinkPad T16', 'MacBook Pro M4', 'Surface Pro X',
+        'Spectre Fold', 'XPS 13 Plus', 'Gram Ultra 15', 'Swift Go 14', 'Yoga Book 9',
+        'ROG Strix G18', 'Raider GE16', 'Legion Slim 7', 'Predator Triton 17', 'Omen 16 Pro',
+        'Chromebook Enterprise', 'IdeaPad Flex 5', 'Inspiron 14 2-in-1', 'Pavilion x360', 'VivoBook S15',
+        'ProBook Flip', 'ZenBook S14', 'ThinkPad X1 Yoga', 'MacBook Pro 16 M4', 'Surface Go Ultra',
+        'Spectre 16 Pro', 'XPS Desktop Pro', 'Gram 14 Pro', 'Swift X 16', 'Yoga Slim 7',
+        'ROG Flow X16', 'Raider GE14', 'Legion Tower 7', 'Predator Orion X', 'Omen Desktop 45',
+        'Chromebook Flip', 'IdeaCentre Mini', 'OptiPlex Micro', 'EliteDesk Mini', 'ThinkCentre Neo',
+        'ProStation X1', 'ZenBook Flip 15', 'ThinkPad P16s', 'Mac Mini Pro M4', 'Surface Studio X',
+        'Spectre Desktop', 'XPS Tower Ultra', 'Gram Desktop', 'ConceptD 7 Pro', 'Yoga AIO 9',
+        'ROG Nuc', 'Raider Desktop', 'Legion Cube', 'Predator Connect', 'Omen Nuc',
+        'Chromebook Tab', 'IdeaPad Gaming 3', 'Inspiron Desktop', 'Pavilion Desktop', 'VivoBook Go',
+        'ProBook 450 G10', 'ZenBook 14X', 'ThinkPad L14', 'MacBook Air 15 M4', 'Surface Laptop Go',
+        'Spectre 14 Pro', 'XPS 14 Ultra', 'Gram 16 Pro', 'Swift 14 AI', 'Yoga Pro 9',
+        'ROG Flow Z13', 'Raider 18 Ultra', 'Legion Go S', 'Predator Helios 16', 'Omen Transcend',
+        'Chromebook Detach', 'IdeaPad Pro 5', 'Inspiron Plus 16', 'Pavilion Aero 13', 'VivoBook 16X',
+        'ProBook x360', 'ZenBook UX14', 'ThinkPad Z16', 'Mac Studio Ultra', 'Surface Laptop 6',
+        'Spectre 13.5', 'XPS 17 Pro', 'Gram SuperSlim', 'Swift Edge Pro', 'Yoga 7 2-in-1',
+        'ROG Ally X', 'Raider GE76', 'Legion 5 Pro', 'Predator Triton 14', 'Omen 15 Ultra',
+        'Chromebook Spin', 'IdeaPad 5 Pro', 'Inspiron 15 Touch', 'Pavilion 15 Pro', 'VivoBook Flip',
+        'ProBook 640', 'ZenBook Q14', 'ThinkPad E16', 'iMac M4', 'Surface Book Ultra',
+        'Spectre x360 16', 'XPS 13 9345', 'Gram Fold', 'ConceptD 5 Pro', 'Yoga C940',
+        'ROG Scar 18', 'Raider Pro 17', 'Legion Y9000', 'Predator X17', 'Omen Star',
+        'Chromebook CX5', 'IdeaCentre AIO', 'OptiPlex Tower', 'EliteBook 865', 'ThinkStation P3',
+        'ProBook Studio', 'ZenBook Pro 16X', 'ThinkPad X13s', 'Mac Pro M4 Ultra', 'Surface Hub Ultra',
+        'Spectre Foldable', 'XPS Mini Desktop', 'Gram AI Ultra', 'Swift 16 AI', 'Yoga Tab Plus'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1496181133206-80ce9b88a853',
+        'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
+        'https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2',
+        'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed',
+        'https://images.unsplash.com/photo-1541807084-5c52b6b3adef',
+        'https://images.unsplash.com/photo-1498050108023-c5249f4df085',
+        'https://images.unsplash.com/photo-1603302576837-37561b2e2302',
+        'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9',
+        'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89',
+        'https://images.unsplash.com/photo-1629131726692-1acfc0d3f293',
+        'https://images.unsplash.com/photo-1587614382346-4ec70e388b28',
+        'https://images.unsplash.com/photo-1531297484001-80022131f5a1'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 10)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'ram';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - High-performance laptop with stunning display, fast processor, and premium build quality.',
+                '{"brand": "TechVision", "warranty": "3 years"}'::jsonb,
+                1, 3, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := v_colors[1 + floor(random() * 6)::INT];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            v_sku_variant := jsonb_build_object('ram', (ARRAY['8GB', '16GB', '32GB', '64GB'])[1 + ((v_sku_idx - 1) % 4)], 'color', v_color);
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, v_sku_variant,
+                    jsonb_build_object('weight', (1.2 + random())::TEXT || 'kg', 'screen', '15.6" IPS'),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 599.99 + floor(random() * 1500)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 3: Audio & Headphones (cat_id=4)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'SoundWave Pro ANC', 'BassBoost 700', 'AirPods Max Ultra', 'WH-1000XM6', 'QuietComfort Ultra',
+        'Momentum 5 Wireless', 'PX8 Over-Ear', 'Aonic 50 Gen 3', 'Tour One M3', 'Crusher ANC 2',
+        'FreeBuds Pro 4', 'Galaxy Buds Ultra', 'AirPods Pro 3', 'WF-1000XM6', 'QuietComfort Earbuds III',
+        'Momentum True 4', 'PI7 S3', 'Aonic Free 2', 'Tour Pro 3', 'Sesh ANC Pro',
+        'SoundLink Ultra', 'Charge 6 Pro', 'HomePod Mini 2', 'SRS-XB43', 'Flip 7',
+        'Move 3 Ultra', 'Roam 3 SL', 'Beosound A5', 'Aura Studio 4', 'Stanmore III',
+        'SoundBar 900 Pro', 'Arc Ultra', 'Beam Gen 3', 'Bar 1300', 'Enchant 1300',
+        'Studio Pro Max', 'Beats Solo Ultra', 'Beats Fit Pro 2', 'Powerbeats Ultra', 'Beats Pill Max',
+        'ATH-M70x', 'HD 820 S', 'DT 1990 Pro', 'K712 Pro', 'Sundara Closed',
+        'LCD-5', 'HD 800 S2', 'Arya Organic', 'Utopia 2024', 'Stellia Closed',
+        'ZE8000 MK2', 'NuraPhone 2', 'Devialet Gemini III', 'MW75 Active', 'Surface Headphones 3',
+        'Zone Vibe 130', 'Poly Voyager Ultra', 'Jabra Evolve3 85', 'EPOS Impact 1061', 'Zone Wireless 2',
+        'UE Boom 4', 'UE Megaboom 4', 'UE Hyperboom 2', 'UE Wonderboom 3', 'UE Minirig 4',
+        'Echo Studio 2', 'Echo Pop Pro', 'Echo Dot 6', 'Nest Audio 2', 'Nest Mini 3',
+        'SoundWave Mini', 'BassBoost 500', 'SoundWave Studio', 'BassBoost 300', 'SoundWave Go',
+        'SoundWave Elite', 'BassBoost Elite', 'SoundWave Flex', 'BassBoost Flex', 'SoundWave Sport',
+        'ProAudio Monitor 5', 'ProAudio Monitor 8', 'ProAudio Sub 12', 'ProAudio Tower', 'ProAudio Center',
+        'SoundStage 500', 'SoundStage 700', 'SoundStage Atmos', 'SoundStage Mini', 'SoundStage Pro',
+        'EarFun Air Pro 4', 'EarFun Wave Pro', 'EarFun UBoom X', 'EarFun Free Pro 3', 'EarFun Air S',
+        'JBL Live 770NC', 'JBL Tune 770NC', 'JBL Endurance Peak 3', 'JBL Reflect Flow Pro', 'JBL Club Pro',
+        'Edifier W830NB', 'Edifier S3000Pro', 'Edifier R1280T', 'Edifier TWS5', 'Edifier W240TN',
+        'Bowers PX7 S3', 'Bowers PI5 S3', 'Bowers Zeppelin 2', 'Bowers A7', 'Bowers Formation Bar',
+        'KEF LSX II LT', 'KEF LS50W III', 'KEF LS60 Wireless', 'KEF R3 Meta', 'KEF KC92 Sub',
+        'Klipsch The Fives II', 'Klipsch T5 III', 'Klipsch Cinema 800', 'Klipsch Heritage HP-3', 'Klipsch The Three Plus',
+        'Denon PerL Pro 2', 'Denon AH-D9200', 'Denon Home 350', 'Denon DHT-S517', 'Denon Home Sound Bar',
+        'Focal Bathys 2', 'Focal Clear MG', 'Focal Diva Utopia', 'Focal Shape 65', 'Focal Sub 6',
+        'Sennheiser IE 900', 'Sennheiser IE 600', 'Sennheiser IE 200', 'Sennheiser HD 560S', 'Sennheiser HD 660S2',
+        'Sony ULT Wear', 'Sony ULT Field 7', 'Sony Inzone H9', 'Sony SRS-XV800', 'Sony HT-A9 Gen 2',
+        'Bang Olufsen H100', 'Bang Olufsen EX 2', 'Bang Olufsen A9 MK5', 'Bang Olufsen Emerge', 'Bang Olufsen Level'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1505740420928-5e560c06d30e',
+        'https://images.unsplash.com/photo-1583394838336-acd977736f90',
+        'https://images.unsplash.com/photo-1546435770-a3e426bf472b',
+        'https://images.unsplash.com/photo-1558089687-f282d8956bbe',
+        'https://images.unsplash.com/photo-1484704849700-f032a568e944',
+        'https://images.unsplash.com/photo-1590658268037-6bf12f032f55',
+        'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1',
+        'https://images.unsplash.com/photo-1545127398-14699f92334b',
+        'https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b',
+        'https://images.unsplash.com/photo-1548921441-89c8bd8d498a',
+        'https://images.unsplash.com/photo-1524678606370-a47ad25cb82a',
+        'https://images.unsplash.com/photo-1613040809024-b4ef7ba99bc3'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, coalesce(array_length(v_cat_products, 1), 0)) LOOP
+        v_sku_count := 1 + floor(random() * 7)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'color';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Premium audio with crystal-clear sound, deep bass, and immersive listening experience.',
+                '{"brand": "TechVision", "warranty": "1 year", "connectivity": "Bluetooth 5.3"}'::jsonb,
+                1, 4, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := v_colors[1 + floor(random() * array_length(v_colors, 1))::INT];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            v_sku_variant := jsonb_build_object('color', v_color);
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, v_sku_variant,
+                    jsonb_build_object('driver_size', (ARRAY['6mm', '10mm', '40mm', '50mm'])[1 + floor(random() * 4)::INT], 'battery_life', (20 + floor(random() * 40))::TEXT || ' hours'),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 29.99 + floor(random() * 470)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 4: Kitchen Appliances (cat_id=6)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'SmartBrew Coffee Maker', 'TurboBlend Pro 3000', 'AirFry Master XL', 'Instant Pot Ultra 10', 'KitchenAid Artisan Pro',
+        'NutriBullet Ultra', 'Vitamix A4500', 'Breville Barista Touch', 'Cuisinart Smart Oven', 'Ninja Foodi Max',
+        'DeLonghi Magnifica S', 'Philips Airfryer XXL', 'Dyson Pure Hot Cook', 'Thermomix TM7', 'Kenwood Titanium Chef',
+        'Sage Smart Oven Pro', 'Smeg Retro Toaster', 'KitchenAid K5 Pro', 'Bosch OptiMUM 9', 'Tefal Cook4Me Touch',
+        'Samsung Bespoke Oven', 'LG InstaView Fridge', 'Whirlpool Smart Range', 'GE Profile Smart', 'Electrolux Pure',
+        'Miele CM7 Coffee', 'Jura Z10 Espresso', 'Gaggia Classic Pro', 'Rancilio Silvia Pro', 'La Marzocco Linea Mini',
+        'Weber Spirit Smart', 'Traeger Pro 780', 'Kamado Joe Classic', 'Big Green Egg L', 'Napoleon Prestige Pro',
+        'SodaStream Art Pro', 'Aarke Carbonator 4', 'Drinkworks Home Bar', 'Bartesian Pro', 'Coravin Timeless',
+        'Instant Vortex Plus', 'Cosori Air Fryer Pro', 'Ninja Air Fryer Max', 'Philips Turbostar', 'GoWise USA Deluxe',
+        'Breville Juice Fountain', 'Hurom H400', 'Nama J2 Cold Press', 'Omega NC900', 'Kuvings Whole Slow',
+        'Zojirushi Neuro Fuzzy', 'Tiger JKT-S10U', 'Cuckoo CRP-P1009', 'Instant Pot Rice Plus', 'Aroma Smart Carb',
+        'Nespresso Vertuo Next', 'Keurig K-Supreme Plus', 'Hamilton Beach FlexBrew', 'Mr. Coffee Smart', 'Oxo Brew 9 Cup',
+        'FoodSaver V4400', 'Anova Precision Pro', 'Joule Turbo Sous Vide', 'ChefSteps Joule Oven', 'Breville PolyScience',
+        'Excalibur 9-Tray Pro', 'Cosori Premium Dehydrator', 'Ninja Nutri Dehydrator', 'NESCO Gardenmaster', 'Magic Mill Pro',
+        'Lodge Enameled Dutch Oven', 'Le Creuset Signature', 'Staub Round Cocotte', 'All-Clad D5 Set', 'Zwilling Spirit',
+        'Instant Pot Duo Plus', 'Ninja Foodi 14-in-1', 'Crock-Pot Express', 'Breville Fast Slow Pro', 'Fagor LUX Multi',
+        'KitchenAid Pasta Press', 'Philips Pasta Maker', 'Marcato Atlas 150', 'Imperia Pasta Machine', 'Lello Musso Gelato',
+        'Panasonic Bread Bakery', 'Zojirushi Virtuoso', 'Breville Custom Loaf', 'Hamilton Beach Bread', 'Cuisinart CBK-210',
+        'Blendtec Total Classic', 'Ninja Professional Plus', 'Hamilton Beach Pro', 'Oster Versa Pro', 'Waring Commercial',
+        'Cuisinart ICE-100', 'Breville Smart Scoop', 'Ninja Creami Deluxe', 'Whynter ICM-201SB', 'Nostalgia Electric',
+        'Bonavita Connoisseur', 'Technivorm Moccamaster', 'Fellow Ode Brew', 'Baratza Encore ESP', 'Eureka Mignon Notte',
+        'Wolf Gourmet Toaster', 'Breville Die-Cast', 'Cuisinart Leverless', 'KitchenAid Pro Line', 'Dualit NewGen',
+        'Zwilling Enfinigy Blender', 'Smeg BLF03', 'Novis ProBlender', 'Sage Super Q', 'Magimix Power Blender',
+        'Moccamaster KBGV Select', 'Ratio Eight Coffee', 'Chemex Ottomatic', 'Behmor Connected', 'Wilfa Svart Precision',
+        'Ankarsrum Original', 'Häfele Mixer Pro', 'Teddy Varimixer', 'Hobart Legacy', 'Globe SP5',
+        'Ooni Koda 16 Pro', 'Gozney Dome S1', 'Breville Smart Oven Pizz', 'Roccbox Pizza Oven', 'Solo Stove Pi Prime',
+        'Instant Pot Pro Plus', 'Drew Barrymore Air Fry', 'Beautiful Slow Cooker', 'Dash Rapid Egg Cooker', 'Aroma Rice Cooker Plus',
+        'Vitamix FoodCycler', 'Lomi Smart Composter', 'Mill Kitchen Bin', 'Reencle Prime', 'Pela Lomi',
+        'PicoBrew Z Series', 'Grainfather G40', 'Spike Solo Brew', 'Anvil Foundry', 'BeerDroid BrewArt'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
+        'https://images.unsplash.com/photo-1585515320310-259814833e62',
+        'https://images.unsplash.com/photo-1570222094114-d054a817e56b',
+        'https://images.unsplash.com/photo-1574269909862-7e1d70bb8078',
+        'https://images.unsplash.com/photo-1556910103-1c02745aae4d',
+        'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085',
+        'https://images.unsplash.com/photo-1517433670267-08bbd4be890f',
+        'https://images.unsplash.com/photo-1585659722983-3a675dabf23c',
+        'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30',
+        'https://images.unsplash.com/photo-1594385208974-2e75f8d7bb48',
+        'https://images.unsplash.com/photo-1556911220-bff31c812dba',
+        'https://images.unsplash.com/photo-1590794056226-79ef935baafb'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 5)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'color';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Professional-grade kitchen appliance for the modern home chef.',
+                '{"brand": "HomeHaven", "warranty": "2 years", "voltage": "110-240V"}'::jsonb,
+                2, 6, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Stainless Steel', 'Matte Black', 'White', 'Red', 'Cream', 'Slate Gray'])[1 + floor(random() * 6)::INT];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('color', v_color),
+                    jsonb_build_object('power', (500 + floor(random() * 1500))::TEXT || 'W', 'capacity', (ARRAY['1L', '2L', '4L', '6L', '8L'])[1 + floor(random() * 5)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 49.99 + floor(random() * 450)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 5: Home Decor (cat_id=7)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Minimalist Pendant Lamp', 'Bohemian Woven Rug', 'Ceramic Vase Set', 'Abstract Canvas Print', 'Velvet Throw Pillow',
+        'Rattan Floor Mirror', 'Marble Side Table', 'Macrame Wall Hanging', 'Brass Table Lamp', 'Linen Curtain Panel',
+        'Terracotta Planter Set', 'Geometric Bookshelf', 'Scented Soy Candle Set', 'Wooden Picture Frame Set', 'Glass Terrarium',
+        'Faux Olive Tree', 'Woven Storage Basket', 'Ceramic Table Clock', 'Metal Wall Art', 'Embroidered Table Runner',
+        'Crystal Wine Decanter', 'Handblown Glass Bowl', 'Jute Area Rug', 'Silk Flower Arrangement', 'Bamboo Room Divider',
+        'Copper Wind Chimes', 'Mosaic Tile Tray', 'Artisan Pottery Bowl', 'Floating Wall Shelf Set', 'Velvet Ottoman',
+        'Stained Glass Panel', 'Wicker Accent Chair', 'Ceramic Dinner Set', 'Linen Napkin Set', 'Cast Iron Doorstop',
+        'Seagrass Wall Basket', 'Crystal Candelabra', 'Porcelain Figurine Set', 'Cork Board Set', 'Agate Bookends',
+        'Moroccan Pouf', 'Japanese Zen Garden', 'Driftwood Sculpture', 'LED Neon Sign', 'Shaggy Area Rug',
+        'Woven Wall Tapestry', 'Glazed Ceramic Pot', 'Acrylic Photo Frame', 'Stone Coaster Set', 'Silk Lampshade',
+        'Vintage Globe', 'Hand-Carved Tray', 'Beaded Chandelier', 'Concrete Planter', 'Wool Throw Blanket',
+        'Teak Wood Tray', 'Paper Lantern Set', 'Enamel Pin Board', 'Faux Fur Rug', 'Wooden Candle Holder',
+        'Ceramic Soap Dispenser', 'Knitted Pouf', 'Metal Fruit Bowl', 'Porcelain Tea Set', 'Burlap Table Runner',
+        'Glass Hurricane Lamp', 'Pewter Photo Frame', 'Wooden Wine Rack', 'Pressed Flower Art', 'Batik Cushion Cover',
+        'Rattan Pendant Light', 'Marble Cheese Board', 'Ceramic Utensil Holder', 'Linen Storage Box', 'Brass Incense Holder',
+        'Terrazzo Tray', 'Cane Dining Chair', 'Recycled Glass Vase', 'Jute Doormat', 'Ceramic Bird Set',
+        'Leather Desk Pad', 'Bone China Mug Set', 'Acacia Wood Bowl', 'Felt Storage Bin', 'Resin Decorative Orb',
+        'Papyrus Pendant Shade', 'Olive Wood Salad Set', 'Coconut Shell Bowl', 'Agate Slice Art', 'Dried Flower Bouquet',
+        'Handwoven Placemat Set', 'Crystal Sphere', 'Teak Root Sculpture', 'Ceramic Oil Burner', 'Ikat Throw Pillow',
+        'Brass Wall Sconce', 'Marble Bookends', 'Mango Wood Shelf', 'Crochet Doily Set', 'Selenite Tower Lamp',
+        'Hammered Copper Bowl', 'Embossed Leather Box', 'Glass Bell Jar', 'Pine Cone Garland', 'Ceramic Bud Vase Set',
+        'Velvet Curtain Panel', 'Shell Mirror Frame', 'Bamboo Tray Set', 'Soapstone Sculpture', 'Cotton Macrame Shelf',
+        'Wooden Desk Organizer', 'Stone Mortar Pestle', 'Faux Coral Decor', 'Glass Mosaic Bowl', 'Ceramic Wall Plate',
+        'Rope Basket Set', 'Metal Clock Large', 'Wood Bead Garland', 'Ceramic Ring Dish', 'Iron Candle Lantern',
+        'Petrified Wood Slice', 'Pampas Grass Bundle', 'Ceramic Trinket Box', 'Woven Pendant Shade', 'Marble Catchall Tray',
+        'Gilded Picture Frame', 'Turquoise Vase', 'Hemp Rug Runner', 'Amber Glass Bottle', 'Concrete Desk Lamp',
+        'Antique Brass Mirror', 'Wooden Bead Curtain', 'Clay Diffuser Set', 'Woven Laundry Basket', 'Fossil Bookend Set'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1513694203232-719a280e022f',
+        'https://images.unsplash.com/photo-1616046229478-9901c5536a45',
+        'https://images.unsplash.com/photo-1556228453-efd6c1ff04f6',
+        'https://images.unsplash.com/photo-1618220179428-22790b461013',
+        'https://images.unsplash.com/photo-1555041469-a586c61ea9bc',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
+        'https://images.unsplash.com/photo-1586023492125-27b2c045efd7',
+        'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92',
+        'https://images.unsplash.com/photo-1615529328331-f8917597711f',
+        'https://images.unsplash.com/photo-1540518614846-7eded433c457',
+        'https://images.unsplash.com/photo-1556909172-54557c7e4fb7',
+        'https://images.unsplash.com/photo-1534349762230-e1871616d868'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 6)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'color';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Beautifully crafted decor piece to elevate your living space.',
+                '{"brand": "HomeHaven", "material": "Mixed", "style": "Contemporary"}'::jsonb,
+                2, 7, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Natural', 'White', 'Black', 'Walnut', 'Cream', 'Sage', 'Terracotta', 'Navy'])[1 + floor(random() * 8)::INT];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('color', v_color, 'size', (ARRAY['Small', 'Medium', 'Large'])[1 + ((v_sku_idx-1) % 3)]),
+                    jsonb_build_object('material', (ARRAY['Ceramic', 'Wood', 'Metal', 'Glass', 'Fabric'])[1 + floor(random() * 5)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 19.99 + floor(random() * 180)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 6: Bedding & Bath (cat_id=8)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Egyptian Cotton Sheet Set', 'Memory Foam Pillow', 'Weighted Blanket 15lb', 'Bamboo Duvet Cover', 'Silk Pillowcase Set',
+        'Microfiber Comforter', 'Linen Sheet Set', 'Cooling Gel Pillow', 'Down Alternative Duvet', 'Flannel Sheet Set',
+        'Percale Cotton Sheets', 'Sateen Sheet Set', 'Organic Cotton Blanket', 'Tencel Sheet Set', 'Waffle Weave Blanket',
+        'Turkish Bath Towel Set', 'Plush Bath Robe', 'Bamboo Bath Mat', 'Egyptian Cotton Towels', 'Quick-Dry Towel Set',
+        'Memory Foam Bath Mat', 'Shower Curtain Linen', 'Bath Caddy Bamboo', 'Heated Towel Rack', 'Spa Shower Head',
+        'Mattress Topper 3"', 'Mattress Protector', 'Bed Skirt Tailored', 'Euro Sham Set', 'Bolster Pillow',
+        'Quilted Coverlet Set', 'Matelasse Bedspread', 'Cable Knit Throw', 'Sherpa Fleece Blanket', 'Electric Blanket',
+        'Body Pillow Long', 'Wedge Pillow Set', 'Buckwheat Hull Pillow', 'Latex Foam Pillow', 'Cervical Neck Pillow',
+        'Shower Caddy Corner', 'Soap Dish Marble', 'Toothbrush Holder Set', 'Bathroom Mirror LED', 'Vanity Tray Set',
+        'Towel Ring Chrome', 'Towel Bar Double', 'Robe Hook Set', 'Toilet Paper Holder', 'Shower Shelf Mounted',
+        'Duvet Insert King', 'Comforter Reversible', 'Bed in a Bag Set', 'Quilt Patchwork', 'Bedspread Chenille',
+        'Pillow Protector Set', 'Mattress Encasement', 'Box Spring Cover', 'Daybed Cover Set', 'Futon Cover',
+        'Hand Towel Set', 'Washcloth Pack', 'Beach Towel Oversized', 'Hair Towel Wrap', 'Gym Towel Set',
+        'Bath Bomb Gift Set', 'Loofa Natural Set', 'Pumice Stone Set', 'Bath Brush Long', 'Exfoliating Gloves',
+        'Aromatherapy Set', 'Essential Oil Diffuser', 'Bath Salt Collection', 'Bubble Bath Set', 'Shower Steamer Set',
+        'Fitted Sheet Deep', 'Flat Sheet King', 'Pillow Sham Pair', 'Bed Sheet Clips', 'Sheet Suspenders',
+        'Crib Sheet Set', 'Toddler Bedding Set', 'Kids Comforter', 'Baby Blanket Set', 'Nursery Curtains',
+        'Pet Bed Orthopedic', 'Pet Blanket Plush', 'Pet Towel Quick Dry', 'Pet Bed Cover', 'Pet Mat Cooling',
+        'Meditation Cushion', 'Floor Pillow Large', 'Reading Pillow', 'Lumbar Support Pillow', 'Travel Pillow Memory',
+        'Blackout Curtain Panel', 'Sheer Curtain Set', 'Thermal Curtain', 'Valance Window', 'Curtain Rod Set',
+        'Laundry Bag Mesh', 'Garment Bag Set', 'Shoe Bag Travel', 'Vacuum Storage Bags', 'Closet Organizer Set',
+        'Canopy Bed Curtain', 'Mosquito Net', 'Bed Tent Privacy', 'Bed Canopy Kids', 'String Light Curtain',
+        'Bathrobe Kids', 'Towel Set Kids', 'Hooded Towel Baby', 'Bath Toy Organizer', 'Step Stool Bath',
+        'Sauna Towel Set', 'Pool Towel Set', 'Cabana Stripe Towel', 'Turkish Peshtemal', 'Linen Bath Towel',
+        'Pillowtop Pad Queen', 'Egg Crate Topper', 'Featherbed Topper', 'Wool Mattress Pad', 'Copper Infused Pad',
+        'Satin Sheet Set', 'Jersey Knit Sheets', 'Supima Cotton Set', 'Modal Sheet Set', 'Hemp Linen Sheets',
+        'Bath Rug Runner', 'Pedestal Mat Set', 'Contour Bath Rug', 'Teak Bath Mat', 'Stone Bath Mat',
+        'Tissue Box Cover', 'Waste Basket Woven', 'Cotton Ball Jar', 'Makeup Organizer', 'Bathroom Scale Digital',
+        'Towel Warmer Bucket', 'UV Sanitizer Box', 'Smart Mirror Bath', 'Fog Free Mirror', 'Magnifying Mirror 10x'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af',
+        'https://images.unsplash.com/photo-1629140727571-9b5c6f6267b4',
+        'https://images.unsplash.com/photo-1616627561950-9f746e330187',
+        'https://images.unsplash.com/photo-1631049307264-da0ec9d70304',
+        'https://images.unsplash.com/photo-1588046130717-0eb0c9a3ba15',
+        'https://images.unsplash.com/photo-1582582494705-f8ce0b0c24f0',
+        'https://images.unsplash.com/photo-1585412727339-54e4bae3bbf9',
+        'https://images.unsplash.com/photo-1609766857326-18fba0896321',
+        'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2',
+        'https://images.unsplash.com/photo-1578683010236-d716f9a3f461',
+        'https://images.unsplash.com/photo-1564013799919-ab600027ffc6',
+        'https://images.unsplash.com/photo-1604709177225-055f99402ea3'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 8)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'size';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Luxury bedding and bath essentials for ultimate comfort.',
+                '{"brand": "HomeHaven", "care": "Machine washable"}'::jsonb,
+                2, 8, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['White', 'Ivory', 'Gray', 'Navy', 'Sage', 'Blush', 'Charcoal', 'Sky Blue'])[1 + floor(random() * 8)::INT];
+            v_media_count := 1 + floor(random() * 4)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('color', v_color, 'size', (ARRAY['Twin', 'Full', 'Queen', 'King', 'Cal King'])[1 + ((v_sku_idx-1) % 5)]),
+                    jsonb_build_object('thread_count', (200 + floor(random() * 600))::TEXT, 'material', (ARRAY['Cotton', 'Bamboo', 'Linen', 'Microfiber'])[1 + floor(random() * 4)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 24.99 + floor(random() * 175)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 7: Men's Clothing (cat_id=10)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Slim Fit Oxford Shirt', 'Classic Chino Pants', 'Merino Wool Sweater', 'Tailored Blazer', 'Straight Fit Jeans',
+        'Pima Cotton T-Shirt', 'Linen Button Down', 'Performance Polo', 'Quilted Vest', 'Cashmere Cardigan',
+        'French Terry Hoodie', 'Athletic Joggers', 'Denim Jacket Classic', 'Wool Overcoat', 'Bomber Jacket',
+        'Flannel Shirt Plaid', 'Corduroy Pants', 'Henley Long Sleeve', 'Cargo Shorts', 'Board Shorts',
+        'Dress Shirt Slim', 'Suit Jacket Modern', 'Dress Pants Flat', 'Silk Necktie', 'Leather Belt Classic',
+        'Swim Trunks Quick Dry', 'Running Shorts', 'Compression Tights', 'Track Jacket', 'Windbreaker Light',
+        'Puffer Jacket Down', 'Peacoat Wool', 'Trench Coat Classic', 'Leather Jacket Moto', 'Field Jacket',
+        'Thermal Undershirt', 'Boxer Brief Set', 'Athletic Socks Pack', 'Dress Socks Set', 'V-Neck Undershirt',
+        'Graphic Tee Premium', 'Muscle Tank Top', 'Rugby Polo Stripe', 'Camp Collar Shirt', 'Band Collar Shirt',
+        'Pleated Trousers', 'Drawstring Pants', 'Tech Chinos Stretch', 'Selvedge Denim', 'Utility Pants',
+        'Harrington Jacket', 'Varsity Jacket', 'Anorak Pullover', 'Shacket Flannel', 'Gilet Padded',
+        'Cashmere Scarf', 'Wool Beanie', 'Leather Gloves', 'Canvas Backpack', 'Messenger Bag Leather',
+        'Linen Blazer Summer', 'Seersucker Suit', 'Cotton Suit', 'Tweed Sport Coat', 'Velvet Blazer',
+        'Chambray Shirt', 'Madras Shirt', 'Poplin Shirt', 'Broadcloth Shirt', 'Twill Shirt',
+        'Flat Front Shorts', 'Pleated Shorts', 'Bermuda Shorts', 'Chino Shorts Slim', 'Linen Shorts',
+        'Crew Neck Sweater', 'Turtleneck Merino', 'Quarter Zip Pullover', 'Cable Knit Sweater', 'Fair Isle Sweater',
+        'Rain Jacket Tech', 'Softshell Jacket', 'Fleece Jacket Full', 'Insulated Parka', 'Down Vest Light',
+        'Pajama Set Cotton', 'Lounge Pants', 'Sleep Shorts', 'Robe Terry Cloth', 'Slippers Shearling',
+        'Suspenders Classic', 'Bow Tie Silk', 'Pocket Square Set', 'Cufflinks Set', 'Tie Bar Set',
+        'Polo Slim Fit', 'Polo Classic Fit', 'Polo Performance', 'Polo Long Sleeve', 'Polo Knit',
+        'Khaki Pants Classic', 'Docker Style Pants', 'Stretch Woven Pants', 'Travel Pants', 'Convertible Pants',
+        'Nylon Track Pants', 'Sweatpants Classic', 'French Terry Jogger', 'Mesh Athletic Short', 'Compression Short',
+        'Waxed Cotton Jacket', 'Suede Trucker Jacket', 'Knit Blazer', 'Unstructured Blazer', 'Linen Sport Coat',
+        'Thermal Henley', 'Waffle Knit Top', 'Raglan Baseball Tee', 'Pocket Tee Slub', 'Oversized Tee',
+        'Wool Dress Pants', 'Pleated Wool Trousers', 'Gabardine Pants', 'Flannel Trousers', 'Linen Pants Wide',
+        'Pea Coat Double', 'Car Coat Wool', 'Duffle Coat Toggle', 'Cape Coat', 'Chesterfield Overcoat',
+        'Athletic Crew Socks', 'No Show Socks Pack', 'Merino Hiking Socks', 'Compression Socks', 'Novelty Socks Set',
+        'Canvas Belt Woven', 'Reversible Leather Belt', 'Braided Belt', 'Suede Belt', 'Web Belt Military',
+        'Duffel Bag Weekender', 'Laptop Briefcase', 'Dopp Kit Leather', 'Crossbody Bag', 'Tote Bag Canvas'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf',
+        'https://images.unsplash.com/photo-1617137968427-85924c800a22',
+        'https://images.unsplash.com/photo-1594938298603-c8148c4dae35',
+        'https://images.unsplash.com/photo-1620012253295-c15cc3e65df4',
+        'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8',
+        'https://images.unsplash.com/photo-1507680434567-5739c80be1ac',
+        'https://images.unsplash.com/photo-1553867745-6e038d085e86',
+        'https://images.unsplash.com/photo-1593030761757-71fae45fa0e7',
+        'https://images.unsplash.com/photo-1576566588028-4147f3842f27',
+        'https://images.unsplash.com/photo-1621072156002-e2fccdc0b176',
+        'https://images.unsplash.com/photo-1516257984-b1b4d707412e',
+        'https://images.unsplash.com/photo-1490114538077-0a7f8cb49891'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 2 + floor(random() * 9)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'size';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Classic menswear crafted with premium materials for lasting style and comfort.',
+                '{"brand": "StyleCraft", "fit": "Modern", "care": "Machine wash cold"}'::jsonb,
+                4, 10, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := v_colors[1 + floor(random() * 10)::INT];
+            v_size := v_sizes[1 + ((v_sku_idx - 1) % array_length(v_sizes, 1))];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('size', v_size, 'color', v_color),
+                    jsonb_build_object('material', (ARRAY['100% Cotton', '98% Cotton 2% Elastane', 'Merino Wool', 'Linen Blend', 'Polyester'])[1 + floor(random() * 5)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 19.99 + floor(random() * 180)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 8: Women's Clothing (cat_id=11)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Silk Wrap Dress', 'High-Rise Skinny Jeans', 'Cashmere Pullover', 'Pleated Midi Skirt', 'Linen Blazer',
+        'Floral Maxi Dress', 'Ponte Ankle Pants', 'Merino Wool Cardigan', 'A-Line Mini Skirt', 'Cotton Blouse',
+        'Satin Camisole', 'Wide Leg Trousers', 'Cropped Denim Jacket', 'Trench Coat Belted', 'Puffer Vest',
+        'Bodycon Knit Dress', 'Palazzo Pants', 'Oversized Sweater', 'Pencil Skirt Stretch', 'Silk Button Up',
+        'Wrap Top Floral', 'Mom Jeans Relaxed', 'Turtleneck Ribbed', 'Cargo Joggers', 'Bomber Jacket Satin',
+        'Fit and Flare Dress', 'Straight Leg Jeans', 'Chunky Knit Sweater', 'Tennis Skirt', 'Peplum Top',
+        'Off Shoulder Blouse', 'Bootcut Jeans', 'Mohair Blend Sweater', 'Wrap Skirt Midi', 'Cropped Hoodie',
+        'Shirt Dress Stripe', 'Paper Bag Waist Pants', 'V-Neck Sweater Vest', 'Tiered Maxi Skirt', 'Leather Moto Jacket',
+        'Slip Dress Satin', 'Barrel Leg Jeans', 'Cowl Neck Sweater', 'Box Pleat Skirt', 'Quilted Jacket',
+        'Smocked Sundress', 'Cigarette Pants', 'Cape Blazer', 'Circle Skirt Full', 'Shearling Coat',
+        'Eyelet Lace Dress', 'Culottes Wide', 'Boucle Cardigan', 'Asymmetric Skirt', 'Utility Jacket',
+        'Halter Top Ribbed', 'Skinny Ankle Pants', 'Cocoon Coat Wool', 'Pleated Palazzo', 'Faux Fur Vest',
+        'Broderie Anglaise Top', 'Relaxed Fit Chinos', 'Long Cardigan Open', 'Godet Skirt', 'Raincoat Waterproof',
+        'Ruched Bodysuit', 'Paperbag Shorts', 'Funnel Neck Sweater', 'Knife Pleat Skirt', 'Teddy Bear Coat',
+        'Poplin Shirt Dress', 'Flared Jeans Retro', 'Intarsia Sweater', 'Handkerchief Skirt', 'Vest Long Line',
+        'Bustier Crop Top', 'Tapered Trousers', 'Mohair Cardigan', 'Fishtail Skirt', 'Biker Jacket',
+        'Swiss Dot Blouse', 'Jogger Pants Satin', 'Boyfriend Sweater', 'Skater Skirt', 'Cape Coat Wool',
+        'Corset Top Structured', 'Wide Leg Jumpsuit', 'Poncho Knit', 'Sarong Wrap Skirt', 'Toggle Duffle Coat',
+        'Peter Pan Collar Top', 'Harem Pants', 'Shrug Cardigan', 'Tulip Skirt', 'Anorak Oversized',
+        'Bandeau Top Set', 'Track Pants Stripe', 'Bolero Jacket', 'Bubble Skirt', 'Camel Coat Classic',
+        'Peasant Blouse', 'Cargo Pants Wide', 'Pullover Vest Knit', 'Denim Mini Skirt', 'Mac Coat Light',
+        'Mesh Top Layering', 'Drawstring Joggers', 'Shawl Collar Cardi', 'Suede Midi Skirt', 'Wax Jacket',
+        'Tank Top Ribbed', 'Straight Leg Crop', 'Roll Neck Sweater', 'Kilt Wrap Skirt', 'Stadium Jacket',
+        'Tie Front Blouse', 'Barrel Leg Crop', 'Fairisle Jumper', 'Fluted Skirt', 'Longline Puffer',
+        'Keyhole Top', 'Balloon Leg Jeans', 'Aran Knit Sweater', 'Yoke Skirt', 'Gilet Oversized',
+        'Choker Neck Top', 'Cropped Wide Leg', 'Cricket Sweater', 'Skort Tennis', 'Trench Vest',
+        'Cold Shoulder Top', 'Mom Shorts Denim', 'Argyle Vest', 'Bias Cut Skirt', 'Oversized Parka',
+        'Muscle Tee Cropped', 'Pleat Front Pants', 'Blanket Scarf Cape', 'Prairie Skirt Long', 'Chore Jacket',
+        'Square Neck Bodysuit', 'Cuffed Boyfriend Jean', 'Batwing Sweater', 'Ruffle Midi Skirt', 'Bouclé Blazer',
+        'Henley Top Waffle', 'Sailor Pants Wide', 'Draped Cardigan', 'Column Skirt Long', 'Duvet Coat Padded'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1483985988355-763728e1935b',
+        'https://images.unsplash.com/photo-1558618666-fcd25c85f82e',
+        'https://images.unsplash.com/photo-1469334031218-e382a71b716b',
+        'https://images.unsplash.com/photo-1445205170230-053b83016050',
+        'https://images.unsplash.com/photo-1525507119028-ed4c629a60a3',
+        'https://images.unsplash.com/photo-1581044777550-4cfa60707998',
+        'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3',
+        'https://images.unsplash.com/photo-1509631179647-0177331693ae',
+        'https://images.unsplash.com/photo-1496747611176-843222e1e57c',
+        'https://images.unsplash.com/photo-1485968579580-b6d095142e6e',
+        'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f',
+        'https://images.unsplash.com/photo-1539008835657-9e8e9680c956'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 2 + floor(random() * 9)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'size';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Elegant women''s fashion with attention to detail and premium fabrics.',
+                '{"brand": "StyleCraft", "fit": "Regular", "season": "All Season"}'::jsonb,
+                4, 11, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Black', 'White', 'Navy', 'Blush', 'Burgundy', 'Olive', 'Camel', 'Ivory', 'Dusty Rose', 'Forest Green'])[1 + floor(random() * 10)::INT];
+            v_size := v_sizes[1 + ((v_sku_idx - 1) % array_length(v_sizes, 1))];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('size', v_size, 'color', v_color),
+                    jsonb_build_object('material', (ARRAY['Silk', '100% Cotton', 'Linen Blend', 'Viscose', 'Wool Blend'])[1 + floor(random() * 5)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 24.99 + floor(random() * 175)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 9: Shoes & Footwear (cat_id=12)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Classic Leather Sneaker', 'Running Shoe Ultra', 'Chelsea Boot Suede', 'Oxford Dress Shoe', 'Slip-On Canvas',
+        'High Top Basketball', 'Trail Running Shoe', 'Ankle Boot Leather', 'Loafer Penny Classic', 'Espadrille Platform',
+        'Cross Training Shoe', 'Hiking Boot Waterproof', 'Desert Boot Chukka', 'Derby Shoe Cap Toe', 'Slide Sandal',
+        'Retro Running Shoe', 'Rain Boot Tall', 'Moccasin Driving', 'Brogue Wing Tip', 'Flip Flop Premium',
+        'Knit Sneaker Sock', 'Snow Boot Insulated', 'Western Boot', 'Monk Strap Double', 'Sport Sandal',
+        'Minimalist Running', 'Knee High Boot', 'Boat Shoe Classic', 'Patent Leather Oxford', 'Clog Wood Sole',
+        'Stability Running', 'Combat Boot Lace', 'Tassel Loafer', 'Cap Toe Oxford', 'Thong Sandal Leather',
+        'Trail Hiking Shoe', 'Riding Boot Tall', 'Suede Desert Boot', 'Bit Loafer', 'Gladiator Sandal',
+        'Speed Training Shoe', 'Duck Boot Winter', 'Wingtip Boot', 'Venetian Loafer', 'Strappy Heel Sandal',
+        'Cushion Walking Shoe', 'Over the Knee Boot', 'Saddle Shoe', 'Belgian Loafer', 'Wedge Sandal',
+        'Lightweight Runner', 'Lace Up Boot', 'Camp Moc', 'Whole Cut Oxford', 'Birkenstock Style',
+        'Max Cushion Runner', 'Engineer Boot', 'Driving Moc Suede', 'Plain Toe Derby', 'Pool Slide',
+        'Responsive Running', 'Chelsea Rain Boot', 'Penny Loafer Suede', 'Split Toe Derby', 'Platform Sneaker',
+        'Neutral Running', 'Harness Boot', 'Kilted Loafer', 'Blucher Shoe', 'Huarache Sandal',
+        'Carbon Plate Racer', 'Logger Boot', 'Horsebit Loafer', 'Wholecut Boot', 'Fisherman Sandal',
+        'Road Running Shoe', 'Service Boot', 'Slipper Shearling', 'Longwing Blucher', 'Cork Footbed Sandal',
+        'Track Spike Sprint', 'Jodhpur Boot', 'House Shoe Wool', 'Spectator Shoe', 'Rope Sole Espadrille',
+        'Field Hockey Shoe', 'Zip Boot Side', 'Mule Leather', 'Medallion Toe', 'Toe Ring Sandal',
+        'Tennis Shoe Classic', 'Balmoral Boot', 'Slingback Heel', 'Apron Toe Derby', 'Slider Sport',
+        'Volleyball Shoe', 'Button Boot', 'Smoking Slipper', 'Adelaide Oxford', 'Beach Sandal',
+        'Badminton Shoe', 'Paratrooper Boot', 'Opera Pump', 'Norwegian Welt', 'Water Shoe',
+        'Squash Court Shoe', 'Jump Boot', 'Velvet Loafer', 'Flex Sole Oxford', 'Shower Sandal',
+        'Cricket Shoe Spike', 'Tanker Boot', 'Clog Mule', 'Storm Welt Boot', 'Hiking Sandal',
+        'Futsal Shoe Indoor', 'Aviator Boot', 'Mary Jane Flat', 'Ghillie Brogue', 'Aqua Shoe',
+        'Wrestling Shoe', 'Jungle Boot', 'D''Orsay Flat', 'Pebble Grain Derby', 'Trekking Sandal',
+        'Boxing Boot', 'Roper Boot', 'Ballet Flat', 'Shell Cordovan', 'Adventure Sandal',
+        'Cycling Shoe Road', 'Stockman Boot', 'Pointed Toe Flat', 'Hand Sewn Moc', 'Recovery Slide',
+        'Golf Shoe Classic', 'Rigger Boot', 'Kitten Heel', 'Stitch Down Boot', 'Comfort Clog',
+        'Bowling Shoe Retro', 'Firefighter Boot', 'Chunky Platform', 'Blake Stitch Shoe', 'Travel Sandal Packable'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1542291026-7eec264c27ff',
+        'https://images.unsplash.com/photo-1460353581641-37baddab0fa2',
+        'https://images.unsplash.com/photo-1549298916-b41d501d3772',
+        'https://images.unsplash.com/photo-1608231387042-66d1773070a5',
+        'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a',
+        'https://images.unsplash.com/photo-1543508282-6319a3e2621f',
+        'https://images.unsplash.com/photo-1600269452121-4f2416e55c28',
+        'https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa',
+        'https://images.unsplash.com/photo-1551107696-a4b0c5a0d9a2',
+        'https://images.unsplash.com/photo-1539185441755-769473a23570',
+        'https://images.unsplash.com/photo-1584735175315-9d5df23860e6',
+        'https://images.unsplash.com/photo-1587563871167-1ee9c731aefb'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 2 + floor(random() * 8)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'size';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Premium footwear combining style with all-day comfort.',
+                '{"brand": "StyleCraft", "sole": "Rubber", "origin": "Handcrafted"}'::jsonb,
+                4, 12, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Black', 'Brown', 'White', 'Tan', 'Navy', 'Gray', 'Burgundy', 'Olive'])[1 + floor(random() * 8)::INT];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('size', (7 + ((v_sku_idx-1) % 8))::TEXT, 'color', v_color),
+                    jsonb_build_object('material', (ARRAY['Full Grain Leather', 'Suede', 'Canvas', 'Knit Mesh', 'Nubuck'])[1 + floor(random() * 5)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 39.99 + floor(random() * 260)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 10: Fitness Equipment (cat_id=14)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Adjustable Dumbbell Set', 'Olympic Barbell 7ft', 'Resistance Band Set', 'Yoga Mat Premium', 'Kettlebell Cast Iron',
+        'Pull Up Bar Door', 'Ab Roller Wheel', 'Jump Rope Speed', 'Foam Roller High Density', 'Medicine Ball Set',
+        'Power Rack Cage', 'Flat Weight Bench', 'Spin Bike Pro', 'Rowing Machine Air', 'Treadmill Foldable',
+        'Elliptical Trainer', 'Stair Climber Mini', 'Battle Rope 50ft', 'TRX Suspension Trainer', 'Plyo Box Set',
+        'Weight Plate Set', 'Hex Dumbbell Pair', 'EZ Curl Bar', 'Smith Machine Home', 'Cable Machine Dual',
+        'Ankle Weights Pair', 'Wrist Wraps Lifting', 'Lifting Gloves', 'Lifting Belt Leather', 'Knee Sleeves Pair',
+        'Squat Pad Barbell', 'Gym Mat Thick', 'Exercise Ball 65cm', 'Balance Board Wood', 'Agility Ladder',
+        'Push Up Board', 'Dip Station Tower', 'Punching Bag Heavy', 'Boxing Gloves 16oz', 'Hand Grip Strengthener',
+        'Pilates Reformer', 'Pilates Ring', 'Yoga Block Set', 'Yoga Strap Set', 'Yoga Wheel',
+        'Weighted Vest 40lb', 'Sandbag Training', 'Slam Ball 30lb', 'Wall Ball 20lb', 'Landmine Attachment',
+        'Deadlift Platform', 'Bumper Plate Set', 'Fractional Plates', 'Plate Storage Tree', 'Barbell Collar Set',
+        'Incline Bench Adj', 'Preacher Curl Bench', 'Hyperextension Bench', 'Decline Sit Up Bench', 'Flat Fly Bench',
+        'Leg Press Machine', 'Leg Extension Curl', 'Lat Pulldown Machine', 'Seated Row Machine', 'Pec Deck Machine',
+        'Dumbbell Rack 3 Tier', 'Kettlebell Rack', 'Weight Tree Olympic', 'Storage Shelf Gym', 'Mat Rack Wall',
+        'Heart Rate Monitor', 'Fitness Tracker Band', 'Smart Jump Rope', 'Digital Timer Gym', 'Rep Counter',
+        'Massage Gun Pro', 'Vibration Plate', 'Percussion Massager', 'Lacrosse Ball Set', 'Muscle Roller Stick',
+        'Parallette Bars', 'Gymnastic Rings', 'Climbing Rope 15ft', 'Peg Board Climbing', 'Monkey Bar Set',
+        'Speed Bag Platform', 'Double End Bag', 'Focus Mitts Pair', 'Shin Guards MMA', 'Head Gear Boxing',
+        'Rower Water Resist', 'Ski Erg Machine', 'Bike Erg Concept', 'Air Runner Curved', 'Jacobs Ladder',
+        'Trap Bar Hex', 'Safety Squat Bar', 'Football Bar Multi', 'Swiss Bar Cambered', 'Axle Bar Thick',
+        'Chalk Block Set', 'Liquid Chalk Bottle', 'Gym Towel Micro', 'Water Bottle 40oz', 'Shaker Bottle Pro',
+        'Resistance Tube Set', 'Mini Loop Band Set', 'Fabric Hip Band', 'Figure 8 Band', 'Therapy Band Roll',
+        'Step Platform Adj', 'Aerobic Step Set', 'Slide Board', 'Core Slider Set', 'Bosu Ball Pro',
+        'Punching Dummy', 'Kick Shield Large', 'Thai Pads Pair', 'Grappling Dummy', 'Cage Ball 12lb',
+        'Iron Gym Tower', 'Multi Home Gym', 'Functional Trainer', 'Crossover Machine', 'Half Rack',
+        'Sled Push Pull', 'Prowler Sled', 'Yoke Walk', 'Farmers Walk Handle', 'Atlas Stone Mold',
+        'Gymnast Mat Folding', 'Crash Pad Thick', 'Landing Mat', 'Tumbling Track', 'Balance Beam Low',
+        'Grip Trainer Set', 'Finger Exerciser', 'Wrist Roller', 'Pinch Grip Block', 'Hub Plate Pinch',
+        'Sport Timer Digital', 'Interval Timer LED', 'Gym Clock Large', 'Scoreboard Digital', 'Round Timer Boxing',
+        'Cable Attachment Set', 'Rope Attachment Tri', 'V Bar Close Grip', 'MAG Grip Set', 'Ankle Strap Cable',
+        'Squat Wedge Pair', 'Deadlift Wedge', 'Hip Thrust Pad', 'Neck Harness Train', 'Arm Blaster Curl'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1534438327276-14e5300c3a48',
+        'https://images.unsplash.com/photo-1517836357463-d25dfeac3438',
+        'https://images.unsplash.com/photo-1576678927484-cc907957088c',
+        'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b',
+        'https://images.unsplash.com/photo-1540497077202-7c8a3999166f',
+        'https://images.unsplash.com/photo-1593079831268-3381b0db4a77',
+        'https://images.unsplash.com/photo-1598289431512-b97b0917affc',
+        'https://images.unsplash.com/photo-1607962837359-5e7e89f86776',
+        'https://images.unsplash.com/photo-1558611848-73f7eb4001a1',
+        'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e',
+        'https://images.unsplash.com/photo-1526506118085-60ce8714f8c5',
+        'https://images.unsplash.com/photo-1594737625785-a6cbdabd333c'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 6)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'weight';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Professional-grade fitness equipment for home and commercial gyms.',
+                '{"brand": "SportEdge", "warranty": "5 years", "use": "Home & Commercial"}'::jsonb,
+                3, 14, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Black', 'Red', 'Gray', 'Blue', 'Black/Red', 'Black/Gray'])[1 + floor(random() * 6)::INT];
+            v_media_count := 1 + floor(random() * 4)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('color', v_color, 'weight', (ARRAY['5lb', '10lb', '15lb', '25lb', '35lb', '45lb'])[1 + ((v_sku_idx-1) % 6)]),
+                    jsonb_build_object('material', (ARRAY['Cast Iron', 'Steel', 'Rubber Coated', 'Chrome', 'Urethane'])[1 + floor(random() * 5)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 14.99 + floor(random() * 485)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 11: Outdoor Recreation (cat_id=15)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Ultralight Tent 2P', 'Down Sleeping Bag 20F', 'Trekking Pole Carbon', 'Camping Stove Portable', 'Headlamp 1000 Lumen',
+        'Backpack 65L Frame', 'Water Filter Pump', 'Hammock Double', 'Dry Bag 30L', 'Camping Chair Compact',
+        'Inflatable Sleeping Pad', 'Camp Cookware Set', 'Solar Panel Portable', 'Binoculars 10x42', 'GPS Handheld',
+        'Climbing Harness', 'Carabiner Set', 'Climbing Rope 60m', 'Approach Shoe', 'Chalk Bag Climbing',
+        'Kayak Inflatable 2P', 'Paddle Board SUP', 'Life Jacket Adult', 'Fishing Rod Combo', 'Tackle Box Pro',
+        'Cooler Rotomolded 65', 'Camp Table Fold', 'Lantern Rechargeable', 'Fire Starter Kit', 'Multi-Tool Premium',
+        'Tent Footprint', 'Rain Fly Tarp', 'Stuff Sack Set', 'Bear Canister', 'Water Bottle Insulated',
+        'Trail Gaiters', 'Sun Hat UPF 50', 'Neck Gaiter Merino', 'Hiking Socks Merino', 'Bug Net Head',
+        'Camp Shower Solar', 'Portable Toilet', 'Camp Sink Fold', 'Clothesline Travel', 'Camp Pillow Compress',
+        'Snow Shoes Pair', 'Ice Axe Lightweight', 'Crampons Steel', 'Avalanche Beacon', 'Snow Shovel Pack',
+        'Rock Climbing Shoes', 'Belay Device ATC', 'Quickdraw Set 6', 'Helmet Climbing', 'Crash Pad Boulder',
+        'Canoe 16ft', 'Raft Inflatable 4P', 'Snorkel Set Full', 'Dive Computer Wrist', 'Wetsuit 3mm Full',
+        'Mountain Bike Helmet', 'Cycling Gloves Gel', 'Bike Repair Kit', 'Bike Light Set', 'Panniers Waterproof',
+        'Ski Goggles Mirror', 'Ski Gloves Insulated', 'Base Layer Set', 'Balaclava Merino', 'Heated Socks',
+        'Surfboard Foam 8ft', 'Surf Wax Set', 'Rash Guard UPF', 'Board Bag Travel', 'Surf Leash Premium',
+        'Camp Axe Hatchet', 'Folding Saw', 'Paracord 100ft', 'Emergency Blanket', 'First Aid Kit Pro',
+        'Daypack 25L', 'Hydration Pack 3L', 'Fanny Pack Trail', 'Stuff Daypack Ultra', 'Dry Pack 15L',
+        'Tent Stakes Titanium', 'Guy Line Set', 'Tent Repair Kit', 'Seam Sealer', 'Ground Sheet Heavy',
+        'Field Guide Birds', 'Star Chart Night', 'Compass Lensatic', 'Map Case Waterproof', 'Whistle Emergency',
+        'Camp Grill Fold', 'Dutch Oven Cast', 'Percolator Coffee Camp', 'Spork Titanium', 'Mess Kit Compact',
+        'Fishing Reel Spinning', 'Fly Rod 9ft', 'Fishing Net Landing', 'Fish Scale Digital', 'Wader Breathable',
+        'Hunting Blind Pop Up', 'Game Camera Trail', 'Rangefinder Laser', 'Decoy Set Mallard', 'Call Set Turkey',
+        'Climbing Cam Set', 'Nut Set Climbing', 'Sling Set Dyneema', 'Cordelette 7mm', 'Ascending Device',
+        'Paddleboard Pump', 'Kayak Paddle Carbon', 'Bilge Pump Hand', 'Paddle Leash', 'Cockpit Cover',
+        'Treeline Tent 4P', 'Car Camp Tent 6P', 'Backpack Tent 1P', 'Bivy Sack', 'Tarp Shelter',
+        'Sleeping Bag Liner', 'Camp Cot Fold', 'Air Mattress Camp', 'Self Inflate Pad', 'Foam Pad Closed',
+        'Portable Power Station', 'USB Camp Fan', 'Camp Light String', 'Battery Pack 20K', 'Crank Radio',
+        'Geocache Kit', 'Trail Marker Set', 'Altimeter Watch', 'Satellite Messenger', 'PLB Beacon',
+        'Bear Spray 9oz', 'Snake Bite Kit', 'Water Purifier UV', 'Iodine Tablets', 'Sawyer Squeeze Filter',
+        'Ski Pole Carbon', 'Snowboard Bag', 'Boot Bag Heated', 'Skin Climbing Set', 'Probe Avalanche',
+        'Camp Hammock Rain Fly', 'Tree Strap Set', 'Bug Net Hammock', 'Under Quilt Down', 'Top Quilt Synthetic'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4',
+        'https://images.unsplash.com/photo-1510312305653-8ed496efae75',
+        'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7',
+        'https://images.unsplash.com/photo-1476611338391-6f395a0ebc7b',
+        'https://images.unsplash.com/photo-1517824806704-9040b037703b',
+        'https://images.unsplash.com/photo-1441974231531-c6227db76b6e',
+        'https://images.unsplash.com/photo-1533873984035-25970ab07461',
+        'https://images.unsplash.com/photo-1551632811-561732d1e306',
+        'https://images.unsplash.com/photo-1519904981063-b0cf448d479e',
+        'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b',
+        'https://images.unsplash.com/photo-1501555088652-021faa106b9b',
+        'https://images.unsplash.com/photo-1527004013197-933c4bb611b3'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 6)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'color';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Adventure-ready outdoor gear built to withstand the elements.',
+                '{"brand": "SportEdge", "warranty": "Lifetime", "waterproof": "Yes"}'::jsonb,
+                3, 15, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Forest Green', 'Orange', 'Blue', 'Black', 'Coyote Tan', 'Red'])[1 + floor(random() * 6)::INT];
+            v_media_count := 1 + floor(random() * 4)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('color', v_color),
+                    jsonb_build_object('weight', (0.2 + random() * 3)::NUMERIC(4,2)::TEXT || 'kg', 'packed_size', (ARRAY['Compact', 'Standard', 'Large'])[1 + floor(random() * 3)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 19.99 + floor(random() * 380)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 12: Skincare (cat_id=17)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Vitamin C Brightening Serum', 'Retinol Night Cream', 'Hyaluronic Acid Moisturizer', 'Gentle Foaming Cleanser', 'SPF 50 Daily Sunscreen',
+        'Niacinamide Pore Serum', 'AHA BHA Exfoliant', 'Ceramide Repair Cream', 'Rosehip Facial Oil', 'Micellar Cleansing Water',
+        'Peptide Eye Cream', 'Salicylic Acid Toner', 'Squalane Oil Pure', 'Green Tea Gel Cream', 'Charcoal Clay Mask',
+        'Bakuchiol Serum', 'Azelaic Acid Cream', 'Centella Asiatica Gel', 'Snail Mucin Essence', 'Rice Water Toner',
+        'Collagen Boost Serum', 'Glycolic Acid Peel', 'Shea Butter Body Cream', 'Aloe Vera Gel Pure', 'Tea Tree Spot Treatment',
+        'Vitamin E Night Oil', 'Benzoyl Peroxide Wash', 'Zinc Sunscreen Mineral', 'Kojic Acid Cream', 'Turmeric Face Mask',
+        'Mandelic Acid Serum', 'Argan Oil Organic', 'Cucumber Eye Patches', 'Dead Sea Mud Mask', 'Coconut Body Lotion',
+        'Lactic Acid Peel', 'Jojoba Oil Cold Press', 'Gold Sheet Mask', 'Caffeine Eye Serum', 'Body Scrub Coffee',
+        'Tranexamic Acid Serum', 'Marula Oil Luxury', 'Honey Face Mask', 'Witch Hazel Toner', 'Oat Milk Cleanser',
+        'Alpha Arbutin Serum', 'Tamanu Oil Pure', 'Charcoal Peel Mask', 'Almond Body Oil', 'Papaya Enzyme Mask',
+        'Ferulic Acid Serum', 'Hemp Seed Oil', 'Kaolin Clay Mask', 'Lavender Body Butter', 'Enzyme Cleanser Powder',
+        'Licorice Root Serum', 'Avocado Eye Cream', 'Volcanic Ash Scrub', 'Mango Body Butter', 'Pumpkin Enzyme Peel',
+        'Resveratrol Serum', 'Baobab Oil Face', 'Colloidal Oat Cream', 'Rose Water Mist', 'Bamboo Exfoliant',
+        'Astaxanthin Serum', 'Moringa Oil Pure', 'Pearl Powder Mask', 'Chamomile Toner', 'Walnut Shell Scrub',
+        'EGF Serum Advanced', 'Sea Buckthorn Oil', 'Bentonite Clay Mask', 'Vanilla Body Cream', 'Sugar Lip Scrub',
+        'Coenzyme Q10 Cream', 'Black Seed Oil', 'Matcha Face Mask', 'Rosewater Cleanser', 'Apricot Kernel Scrub',
+        'Stem Cell Serum', 'Grapeseed Oil Light', 'Prickly Pear Oil', 'Cica Repair Balm', 'Propolis Ampoule',
+        'Galactomyces Essence', 'Bifida Ferment Serum', 'Mugwort Essence', 'Heartleaf Toner', 'Madecassoside Cream',
+        'Panthenol Cream 5%', 'Allantoin Gel', 'Urea Foot Cream 10%', 'Glycerin Body Wash', 'Lanolin Lip Balm',
+        'BHA Liquid Exfoliant', 'PHA Gentle Toner', 'PHB Acid Serum', 'Mandelic Toner', 'Lactobionic Acid',
+        'Oil Cleanser Balm', 'Foam Cleanser pH5', 'Gel Cleanser Clear', 'Cream Cleanser Rich', 'Powder Wash Enzyme',
+        'Toner Pad Exfoliate', 'Essence Pad Hydrate', 'Cotton Round Organic', 'Konjac Sponge', 'Cleansing Cloth Micro',
+        'Eye Mask Collagen', 'Lip Mask Overnight', 'Hand Mask Repair', 'Foot Mask Peel', 'Neck Cream Firming',
+        'Body Serum Firming', 'Stretch Mark Cream', 'Cellulite Cream', 'Self Tan Mousse', 'After Sun Gel',
+        'Acne Patch Hydro', 'Pimple Cream SOS', 'Blemish Serum', 'Oil Control Moisturizer', 'Mattifying Primer',
+        'Anti-Aging Eye Cream', 'Wrinkle Filler Serum', 'Firming Neck Serum', 'Line Smoothing Cream', 'Elastin Booster',
+        'Brightening Toner', 'Dark Spot Corrector', 'Glow Serum Daily', 'Radiance Mask', 'Illuminating Primer',
+        'Sensitive Skin Cream', 'Barrier Repair Serum', 'Calming Gel Cream', 'Redness Relief', 'Eczema Care Cream',
+        'Derma Roller 0.5mm', 'LED Mask Device', 'Gua Sha Rose Quartz', 'Jade Roller Dual', 'Ice Roller Face',
+        'Lip Plumper Gloss', 'Lip Oil Hydrating', 'Lip Balm SPF 30', 'Cuticle Oil Pen', 'Hand Cream SPF'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1556228578-0d85b1a4d571',
+        'https://images.unsplash.com/photo-1570194065650-d99fb4d8a609',
+        'https://images.unsplash.com/photo-1596755389378-c31d21fd1273',
+        'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b',
+        'https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd',
+        'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908',
+        'https://images.unsplash.com/photo-1556228720-195a672e8a03',
+        'https://images.unsplash.com/photo-1612817288484-6f916006741a',
+        'https://images.unsplash.com/photo-1620916566398-39f1143ab7be',
+        'https://images.unsplash.com/photo-1573461160327-b450ce3d8e7f',
+        'https://images.unsplash.com/photo-1571781926291-c477ebfd024b',
+        'https://images.unsplash.com/photo-1590393802688-ab3fce0f2ee5'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 5)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'size';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Clean beauty formulated with natural ingredients for healthy, radiant skin.',
+                '{"brand": "GreenLeaf Naturals", "cruelty_free": "Yes", "vegan": "Yes"}'::jsonb,
+                5, 17, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_media_count := 1 + floor(random() * 4)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('size', (ARRAY['30ml', '50ml', '100ml', '200ml', '500ml'])[1 + ((v_sku_idx-1) % 5)]),
+                    jsonb_build_object('skin_type', (ARRAY['All Skin Types', 'Oily', 'Dry', 'Sensitive', 'Combination'])[1 + floor(random() * 5)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 9.99 + floor(random() * 90)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 13: Books & Media (cat_id=18)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'The Art of Clean Code', 'Mastering System Design', 'Data Structures Deep Dive', 'Machine Learning Foundations', 'Cloud Architecture Patterns',
+        'Designing Distributed Systems', 'The Pragmatic Engineer', 'Algorithms Illuminated', 'Database Internals', 'Operating System Concepts',
+        'Network Programming Guide', 'Cybersecurity Essentials', 'DevOps Handbook 2nd Ed', 'Kubernetes in Action', 'Terraform Up & Running',
+        'Python for Data Science', 'JavaScript: The Good Parts 2', 'Rust Programming Language', 'Go in Practice', 'TypeScript Handbook Pro',
+        'React Design Patterns', 'Vue.js 4 in Action', 'Angular Architecture', 'Node.js Best Practices', 'Django Web Development',
+        'The Great Adventure Novel', 'Mystery at Midnight', 'Love in the Time of AI', 'The Last Frontier', 'Echoes of Tomorrow',
+        'Shadows and Light', 'The Silent Witness', 'Beyond the Horizon', 'The Forgotten Path', 'Whispers in the Wind',
+        'The Color of Magic Revised', 'Starship Odyssey', 'The Dragon Keeper', 'Realm of Shadows', 'The Crystal Tower',
+        'Cooking with Fire', 'The Plant-Based Chef', 'Baking Science', 'Fermentation Bible', 'Wine Atlas World',
+        'Mindfulness Daily', 'Atomic Habits Workbook', 'The Power of Now Journal', 'Stoic Philosophy Guide', 'Deep Work Companion',
+        'World History Illustrated', 'Ancient Civilizations', 'Modern Art Movements', 'Philosophy for Beginners', 'Economics Explained',
+        'Biography of Innovators', 'The Space Race Story', 'Women in Science', 'Music Theory Complete', 'Photography Masterclass',
+        'Yoga for Everyone', 'Running Performance', 'Strength Training Bible', 'Meditation Techniques', 'Nutrition Science',
+        'Gardening Year Round', 'Interior Design Basics', 'Woodworking Projects', 'Knitting Patterns 200', 'Watercolor Techniques',
+        'Travel Guide Europe', 'Travel Guide Asia', 'Travel Guide Americas', 'National Parks Guide', 'Road Trip Atlas',
+        'Children''s Science Book', 'Kids'' World Atlas', 'Fairy Tale Collection', 'Junior Coding Book', 'Math Made Fun',
+        'Graphic Novel Anthology', 'Manga Art Collection', 'Comic Book History', 'Illustrated Classics', 'Pop Art Book',
+        'Business Strategy 101', 'Startup Playbook', 'Financial Freedom Guide', 'Investing for Beginners', 'Real Estate Mastery',
+        'Self Help Journal', 'Gratitude Diary', 'Goal Setting Planner', 'Bullet Journal Guide', 'Creative Writing Prompt',
+        'Poetry Collection Modern', 'Short Story Anthology', 'Essay Collection', 'Memoir Writing Guide', 'Screenplay Format',
+        'Language Learning French', 'Language Learning Spanish', 'Language Learning Japanese', 'Language Learning German', 'Language Learning Korean',
+        'Board Game Strategy', 'Puzzle Book Collection', 'Brain Teaser 500', 'Crossword Mega Book', 'Sudoku Master',
+        'Coloring Book Adult', 'Sketch Pad Premium', 'Calligraphy Practice', 'Hand Lettering Guide', 'Doodle Art Book',
+        'Astronomy Guide Night', 'Bird Watching Field', 'Mushroom Foraging', 'Rock Hounding Guide', 'Weather Patterns Book',
+        'Home Repair Manual', 'Car Maintenance DIY', 'Electronics Projects', 'Sewing Pattern Book', 'Candle Making Guide',
+        'True Crime Collection', 'Spy Thriller Novel', 'Legal Thriller', 'Medical Mystery', 'Psychological Suspense',
+        'Science Fiction Anthology', 'Fantasy World Builder', 'Horror Short Stories', 'Dystopian Novel', 'Time Travel Fiction',
+        'Pet Care Complete', 'Dog Training Manual', 'Cat Behavior Book', 'Aquarium Setup Guide', 'Horse Riding Basics',
+        'Wedding Planning Guide', 'Party Hosting Book', 'Gift Wrapping Art', 'Etiquette Modern', 'Public Speaking Pro',
+        'Retirement Planning', 'Tax Strategy Guide', 'Cryptocurrency Explained', 'Stock Market Playbook', 'Budgeting Workbook'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1544947950-fa07a98d237f',
+        'https://images.unsplash.com/photo-1512820790803-83ca734da794',
+        'https://images.unsplash.com/photo-1497633762265-9d179a990aa6',
+        'https://images.unsplash.com/photo-1495446815901-a7297e633e8d',
+        'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f',
+        'https://images.unsplash.com/photo-1519682337058-a94d519337bc',
+        'https://images.unsplash.com/photo-1543002588-bfa74002ed7e',
+        'https://images.unsplash.com/photo-1532012197267-da84d127e765',
+        'https://images.unsplash.com/photo-1507842217343-583bb7270b66',
+        'https://images.unsplash.com/photo-1481627834876-b7833e8f5570',
+        'https://images.unsplash.com/photo-1526243741027-444d633d7365',
+        'https://images.unsplash.com/photo-1550399105-c4db5fb85c18'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 4)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'format';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Engaging read with expert insights and practical knowledge.',
+                ('{"brand": "BookBound Publishing", "pages": "' || (150 + floor(random() * 350))::TEXT || '", "isbn": "978-' || floor(random() * 9000000000 + 1000000000)::TEXT || '"}')::jsonb,
+                6, 18, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_media_count := 1 + floor(random() * 3)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('format', (ARRAY['Hardcover', 'Paperback', 'Kindle', 'Audiobook'])[1 + ((v_sku_idx-1) % 4)]),
+                    jsonb_build_object('language', 'English'),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := CASE (ARRAY['Hardcover', 'Paperback', 'Kindle', 'Audiobook'])[1 + ((v_sku_idx-1) % 4)]
+                WHEN 'Hardcover' THEN 24.99 + floor(random() * 25)::DECIMAL
+                WHEN 'Paperback' THEN 12.99 + floor(random() * 15)::DECIMAL
+                WHEN 'Kindle' THEN 9.99 + floor(random() * 10)::DECIMAL
+                WHEN 'Audiobook' THEN 19.99 + floor(random() * 15)::DECIMAL
+                ELSE 14.99
+            END;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 14: Toys & Games (cat_id=19)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Building Block Castle Set', 'Remote Control Car Pro', 'STEM Robot Kit', 'Wooden Train Set', 'Art Easel Deluxe',
+        'Magnetic Tile Set 100pc', 'Dollhouse Victorian', 'Action Figure Set', 'Science Experiment Kit', 'Puzzle 1000 Piece',
+        'Board Game Strategy', 'Card Game Family', 'Outdoor Play Set', 'Ride-On Electric Car', 'Balance Bike Wood',
+        'Play Kitchen Deluxe', 'Lego Architecture Set', 'Drone Mini Kids', 'Telescope Junior', 'Microscope Lab Kit',
+        'Sandbox Play Set', 'Water Table Activity', 'Trampoline 12ft', 'Swing Set Wooden', 'Climbing Wall Home',
+        'Play Tent Castle', 'Puppet Theater Set', 'Musical Instrument Set', 'Craft Supply Kit', 'Bead Jewelry Making',
+        'Racing Track Electric', 'Marble Run 200pc', 'Construction Vehicle Set', 'Farm Animal Figures', 'Dinosaur Collection',
+        'Chess Set Wooden', 'Scrabble Deluxe', 'Monopoly Special Ed', 'Risk Global Domination', 'Settlers Strategy Game',
+        'Nerf Blaster Elite', 'Laser Tag Set 4P', 'Walkie Talkie Kids', 'Spy Kit Complete', 'Metal Detector Junior',
+        'Lego Technic Crane', 'Lego City Fire Set', 'Lego Creator Expert', 'Lego Star Wars Set', 'Lego Friends Set',
+        'Play-Doh Mega Set', 'Kinetic Sand Kit', 'Slime Making Kit', 'Pottery Wheel Kids', 'Tie-Dye Kit',
+        'Baby Activity Gym', 'Stacking Ring Tower', 'Shape Sorter Deluxe', 'Soft Block Set', 'Musical Mobile',
+        'Coding Robot Junior', 'Circuit Board Kit', 'Solar System Model', 'Crystal Growing Kit', 'Volcano Science Kit',
+        'Toy Workbench Tools', 'Doctor Play Kit', 'Cash Register Play', 'Ice Cream Shop Set', 'Grocery Store Play',
+        'Barbie Dream House', 'Hot Wheels Track Set', 'Transformer Robot', 'Pokemon Card Set', 'Disney Princess Set',
+        'Outdoor Bowling Set', 'Giant Chess Set', 'Badminton Set Family', 'Croquet Set Classic', 'Bocce Ball Set',
+        'Magic Kit Deluxe', 'Juggling Ball Set', 'Yo-Yo Professional', 'Kendama Wooden', 'Rubik Cube Speed',
+        'Model Train Set HO', 'Model Airplane Kit', 'Model Ship Build', 'Model Car Collection', 'Paint by Number Set',
+        'Archery Set Youth', 'Fencing Set Junior', 'Boxing Set Kids', 'Skateboard Complete', 'Roller Skate Set',
+        'Foam Sword Set', 'Knight Armor Set', 'Pirate Ship Play', 'Space Station Build', 'Rocket Launch Kit',
+        'Doll Stroller Deluxe', 'Tea Party Set', 'Dress Up Trunk', 'Makeup Play Kit', 'Jewelry Box Musical',
+        'RC Helicopter Pro', 'RC Boat Speed', 'RC Tank Battle', 'RC Excavator', 'RC Monster Truck',
+        'Aqua Doodle Mat', 'Light Up Drawing Pad', 'Spirograph Design Set', 'Etch A Sketch Classic', 'Magna Doodle XL',
+        'Lego Duplo Zoo Set', 'Mega Bloks First Set', 'Lincoln Logs Classic', 'K''NEX Roller Coaster', 'Tinkertoy Super Set',
+        'Globe Interactive', 'Map Puzzle World', 'History Timeline Game', 'Geography Card Game', 'Flag Quiz Set',
+        'Wooden Block Set 100', 'Alphabet Puzzle Floor', 'Number Learning Set', 'Color Sorting Game', 'Pattern Block Set',
+        'Bubble Machine Auto', 'Kite Delta Large', 'Frisbee Golf Set', 'Pogo Stick Pro', 'Stilts Adjustable',
+        'Karaoke Machine Kids', 'Drum Set Junior', 'Guitar Acoustic Mini', 'Keyboard Piano 61Key', 'Xylophone Rainbow',
+        'Night Light Projector', 'Glow Stick Mega Pack', 'LED Shoes Kids', 'Light Saber Toy', 'Fiber Optic Lamp',
+        'Board Game Cooperative', 'Trivia Game Family', 'Word Game Speed', 'Dice Game Set', 'Domino Rally Set',
+        'Stuffed Animal Giant', 'Teddy Bear Classic', 'Plush Dinosaur', 'Unicorn Plush Large', 'Weighted Plush Calm'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1558060370-d644479cb6f7',
+        'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1',
+        'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4',
+        'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088',
+        'https://images.unsplash.com/photo-1587654780838-1ddaa7567c1d',
+        'https://images.unsplash.com/photo-1560859251-d563a49c777b',
+        'https://images.unsplash.com/photo-1596068587619-e4b11c7a3c46',
+        'https://images.unsplash.com/photo-1595429035839-c99c298ffdde',
+        'https://images.unsplash.com/photo-1563396983906-b3795482a59a',
+        'https://images.unsplash.com/photo-1581235707960-5e291e24e437',
+        'https://images.unsplash.com/photo-1530820883832-0e84de1a2416',
+        'https://images.unsplash.com/photo-1611604548018-d56bbd85d681'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 5)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'age_group';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Fun, educational, and safe toys designed to inspire creativity and learning.',
+                '{"brand": "KidZone", "age_range": "3+", "safety": "CPSC Certified"}'::jsonb,
+                9, 19, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Multi-Color', 'Blue', 'Pink', 'Red', 'Green', 'Yellow'])[1 + floor(random() * 6)::INT];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('color', v_color, 'age_group', (ARRAY['3-5', '5-8', '8-12', '12+', 'All Ages'])[1 + ((v_sku_idx-1) % 5)]),
+                    jsonb_build_object('pieces', (10 + floor(random() * 490))::TEXT),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 9.99 + floor(random() * 90)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 15: Office & Stationery (cat_id=20)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Ergonomic Office Chair', 'Standing Desk Electric', 'Monitor Arm Dual', 'Mechanical Keyboard', 'Wireless Mouse Ergonomic',
+        'Desk Lamp LED', 'File Cabinet 3-Drawer', 'Whiteboard Magnetic', 'Paper Shredder Cross', 'Label Maker Pro',
+        'Fountain Pen Set', 'Notebook Leather Bound', 'Planner Weekly 2025', 'Sticky Notes Mega Pack', 'Highlighter Set 12',
+        'Desk Organizer Bamboo', 'Pencil Cup Set', 'Letter Tray Stack', 'Bookend Set Metal', 'Paper Weight Crystal',
+        'Printer Laser Color', 'Scanner Flatbed', 'Laminator A3', 'Binding Machine', 'Envelope Sealer',
+        'Stapler Heavy Duty', 'Hole Punch 3-Ring', 'Tape Dispenser Desktop', 'Scissors Set Office', 'Paper Cutter Guillotine',
+        'Calculator Scientific', 'Calculator Desktop', 'Adding Machine', 'Counting Scale', 'Cash Box Lock',
+        'Desk Mat Leather', 'Mouse Pad XL', 'Wrist Rest Gel', 'Footrest Adjustable', 'Back Cushion Lumbar',
+        'Presentation Remote', 'Webcam 4K Pro', 'Headset USB Pro', 'Speaker Phone Conf', 'Document Camera',
+        'Calendar Desk 2025', 'Wall Calendar Large', 'Planner Monthly', 'Address Book', 'Guest Book Leather',
+        'Binder Set 3-Ring', 'Folder Set Manila', 'Hanging File Set', 'Sheet Protector Pack', 'Index Divider Tab',
+        'Pen Set Ballpoint', 'Gel Pen Set 24', 'Marker Set Dry Erase', 'Pencil Set Mechanical', 'Chalk Marker Set',
+        'Correction Tape Pack', 'Glue Stick Set', 'Rubber Band Assorted', 'Push Pin Set', 'Paper Clip Jumbo',
+        'Envelope Set Business', 'Stamp Pad Ink', 'Return Address Stamp', 'Notary Seal Press', 'Wax Seal Kit',
+        'USB Hub 7-Port', 'Cable Management Kit', 'Power Strip Surge', 'Desk Grommet Set', 'Wire Tray Under',
+        'Standing Mat Anti-Fatigue', 'Balance Board Desk', 'Under Desk Bike', 'Desk Treadmill', 'Posture Corrector',
+        'Acoustic Panel Set', 'Privacy Screen Monitor', 'Desk Divider Panel', 'White Noise Machine', 'Air Purifier Desktop',
+        'Filing System Desktop', 'Magazine Holder', 'Catalog Rack', 'Literature Display', 'Brochure Holder',
+        'Name Badge Set', 'ID Card Holder', 'Lanyard Set', 'Visitor Log Book', 'Sign-In Tablet Stand',
+        'Copy Paper Ream', 'Card Stock Set', 'Resume Paper', 'Photo Paper Glossy', 'Tracing Paper Roll',
+        'Sketch Pad A4', 'Graph Paper Pad', 'Legal Pad Yellow', 'Memo Pad Set', 'Receipt Book',
+        'Desk Clock Digital', 'Wall Clock Office', 'Timer Cube', 'Hourglass Sand', 'World Clock Display',
+        'Briefcase Leather', 'Laptop Sleeve 15', 'Portfolio Zippered', 'Messenger Bag Pro', 'Rolling File Cart',
+        'Corkboard Large', 'Pin Board Fabric', 'Glass Board Dry Erase', 'Chalkboard Vintage', 'Planning Board',
+        'Desk Fan USB', 'Humidifier Mini', 'Plant Pot Desk', 'Stress Ball Set', 'Fidget Spinner Metal',
+        'Ink Cartridge Set', 'Toner Cartridge', 'Ribbon Typewriter', 'Refill Pen Set', 'Lead Refill 0.5mm',
+        'Badge Printer', 'Receipt Printer', 'Barcode Scanner', 'Time Clock Digital', 'Postage Scale',
+        'Safety Glasses Clear', 'First Aid Kit Office', 'Fire Extinguisher ABC', 'Emergency Kit Office', 'AED Trainer',
+        'Coffee Mug Set Office', 'Water Bottle Desk', 'Coaster Set Cork', 'Desk Snack Drawer', 'Mini Fridge Office',
+        'Art Print Office', 'Motivational Poster Set', 'World Map Poster', 'Photo Collage Frame', 'Name Plate Desk'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1497366216548-37526070297c',
+        'https://images.unsplash.com/photo-1497366811353-6870744d04b2',
+        'https://images.unsplash.com/photo-1524758631624-e2822e304c36',
+        'https://images.unsplash.com/photo-1542744094-3a31f272c490',
+        'https://images.unsplash.com/photo-1555421689-d68471e189f2',
+        'https://images.unsplash.com/photo-1497215842964-222b430dc094',
+        'https://images.unsplash.com/photo-1519389950473-47ba0277781c',
+        'https://images.unsplash.com/photo-1568992687947-868a62a9f521',
+        'https://images.unsplash.com/photo-1604328698692-f76ea9498e76',
+        'https://images.unsplash.com/photo-1495521939206-a217db9df264',
+        'https://images.unsplash.com/photo-1505330622279-bf7d7fc918f4',
+        'https://images.unsplash.com/photo-1564069114553-7215e1ff1890'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 5)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'color';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Professional office supplies for a productive workspace.',
+                '{"brand": "OfficeMax Pro", "warranty": "1 year"}'::jsonb,
+                10, 20, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Black', 'White', 'Gray', 'Walnut', 'Silver', 'Blue'])[1 + floor(random() * 6)::INT];
+            v_media_count := 1 + floor(random() * 4)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('color', v_color),
+                    '{"material": "Premium"}'::jsonb,
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 4.99 + floor(random() * 295)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 16: Automotive (cat_id=21)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Dash Cam 4K Dual', 'Car Phone Mount Mag', 'Tire Pressure Monitor', 'Jump Starter Portable', 'Car Vacuum Cordless',
+        'LED Headlight Bulbs H11', 'Floor Mat Set All Weather', 'Seat Cover Set Leather', 'Steering Wheel Cover', 'Sun Shade Windshield',
+        'Car Charger USB-C PD', 'Bluetooth FM Transmitter', 'Backup Camera Wireless', 'GPS Tracker Mini', 'OBD2 Scanner Pro',
+        'Air Freshener Set', 'Car Wash Kit Complete', 'Clay Bar Detail Kit', 'Ceramic Coating Spray', 'Leather Conditioner',
+        'Roof Rack Cross Bar', 'Cargo Net Trunk', 'Hitch Receiver Mount', 'Tow Strap Heavy', 'Cargo Carrier Hitch',
+        'Wheel Lock Set', 'Lug Nut Set Chrome', 'Valve Stem Cap LED', 'Hub Cap Set 17"', 'Wheel Spacer Kit',
+        'Oil Filter Premium', 'Air Filter Performance', 'Cabin Air Filter', 'Spark Plug Set Iridium', 'Brake Pad Set Ceramic',
+        'Wiper Blade Set', 'Headlight Restoration', 'Touch Up Paint Pen', 'Dent Puller Kit', 'Scratch Remover',
+        'Car Cover All Weather', 'Windshield Cover Snow', 'Side Mirror Cover', 'Door Edge Guard', 'Bumper Protector',
+        'Tool Kit Roadside', 'Jack Stand Set', 'Lug Wrench Cross', 'Tire Inflator Portable', 'Booster Cable 25ft',
+        'LED Interior Light', 'Under Glow LED Kit', 'Fog Light Set LED', 'Light Bar 20 inch', 'Tail Light LED',
+        'Phone Holder Vent', 'Tablet Mount Headrest', 'Cup Holder Organizer', 'Center Console Tray', 'Trunk Organizer',
+        'Seat Gap Filler', 'Back Seat Organizer', 'Visor Organizer', 'Glove Box Organizer', 'Door Pocket Insert',
+        'Car Battery AGM', 'Battery Terminal Set', 'Battery Disconnect', 'Battery Charger Smart', 'Battery Tester Digital',
+        'Exhaust Tip Chrome', 'Muffler Universal', 'Catalytic Converter', 'Header Set Stainless', 'Cold Air Intake',
+        'Suspension Spring Set', 'Shock Absorber Pair', 'Sway Bar Link Set', 'Control Arm Kit', 'Tie Rod End Set',
+        'Radiator Universal', 'Thermostat Housing', 'Coolant Hose Set', 'Water Pump New', 'Radiator Fan Electric',
+        'Drive Belt Set', 'Timing Belt Kit', 'Tensioner Pulley', 'Idler Pulley', 'Harmonic Balancer',
+        'Alternator Reman', 'Starter Motor', 'Ignition Coil Set', 'Distributor Cap', 'Ignition Wire Set',
+        'Power Steering Pump', 'Steering Rack Reman', 'Tie Rod Assembly', 'Pitman Arm', 'Steering Coupler',
+        'Transmission Filter Kit', 'Clutch Kit Complete', 'Flywheel Dual Mass', 'CV Axle Half Shaft', 'U-Joint Set',
+        'Window Regulator', 'Door Handle Set', 'Mirror Assembly', 'Fender Liner', 'Hood Latch',
+        'Cargo Box Roof', 'Bike Rack Hitch', 'Ski Rack Magnetic', 'Kayak Carrier', 'Surfboard Rack',
+        'Trailer Wiring Kit', 'Trailer Hitch Ball', 'Trailer Brake Control', 'Trailer Light Set', 'Safety Chain Set',
+        'Winch 12000lb', 'Recovery Board Set', 'Hi-Lift Jack', 'Shackle D-Ring Set', 'Snatch Block Pulley',
+        'Tonneau Cover Roll', 'Bed Liner Spray On', 'Bed Extender', 'Tailgate Pad', 'Truck Tent',
+        'Radar Detector', 'Tire Chain Set', 'Fuel Can Jerry 5Gal', 'Fire Extinguisher Car', 'Emergency Flare Set',
+        'Seat Heater Kit', 'Remote Start Kit', 'Window Tint Film', 'Paint Protection Film', 'Chrome Delete Kit',
+        'Intake Manifold', 'Throttle Body', 'Fuel Injector Set', 'Fuel Pump Assembly', 'Fuel Filter',
+        'ABS Sensor Front', 'Wheel Bearing Hub', 'Ball Joint Set', 'Bushing Kit Poly', 'Motor Mount Set'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7',
+        'https://images.unsplash.com/photo-1503376780353-7e6692767b70',
+        'https://images.unsplash.com/photo-1542362567-b07e54358753',
+        'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2',
+        'https://images.unsplash.com/photo-1544636331-e26879cd4d9b',
+        'https://images.unsplash.com/photo-1494976388531-d1058494cdd8',
+        'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7',
+        'https://images.unsplash.com/photo-1583121274602-3e2820c69888',
+        'https://images.unsplash.com/photo-1526726538690-5cbf956ae2fd',
+        'https://images.unsplash.com/photo-1552519507-da3b142c6e3d',
+        'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8',
+        'https://images.unsplash.com/photo-1617788138017-80ad40651399'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 5)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'fitment';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Quality automotive parts and accessories for your vehicle.',
+                '{"brand": "AutoPrime", "warranty": "2 years", "oem_compatible": "Yes"}'::jsonb,
+                8, 21, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_media_count := 1 + floor(random() * 4)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('fitment', (ARRAY['Universal', 'Toyota/Honda', 'Ford/GM', 'European', 'Truck/SUV'])[1 + ((v_sku_idx-1) % 5)]),
+                    jsonb_build_object('condition', 'New', 'certification', 'DOT/SAE'),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 9.99 + floor(random() * 290)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 17: Pet Supplies (cat_id=22)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Premium Dry Dog Food 30lb', 'Grain-Free Cat Food', 'Dog Bed Orthopedic XL', 'Cat Tree Tower 72"', 'Automatic Pet Feeder',
+        'Dog Leash Retractable', 'Cat Litter Box Self-Clean', 'Dog Harness No-Pull', 'Cat Scratching Post', 'Pet Water Fountain',
+        'Dog Crate Collapsible', 'Cat Carrier Airline', 'Dog Toy Chew Set', 'Cat Toy Interactive', 'Pet Grooming Kit',
+        'Dog Shampoo Natural', 'Cat Brush Deshedding', 'Pet Nail Clipper', 'Dog Collar Leather', 'Cat Collar Breakaway',
+        'Dog Bowl Elevated', 'Cat Bowl Ceramic', 'Pet Food Storage 25lb', 'Treat Pouch Training', 'Dog Tag Custom',
+        'Puppy Training Pads 100', 'Cat Litter Premium 40lb', 'Dog Poop Bag 900ct', 'Pet Odor Eliminator', 'Enzyme Cleaner',
+        'Dog Coat Winter', 'Cat Sweater Knit', 'Dog Boots Snow Set', 'Pet Bandana Set', 'Dog Raincoat',
+        'Aquarium Kit 20 Gallon', 'Fish Food Flake', 'Aquarium Filter HOB', 'LED Aquarium Light', 'Air Pump Quiet',
+        'Bird Cage Large', 'Bird Seed Mix', 'Parrot Perch Set', 'Bird Bath Clip', 'Cuttlebone Pack',
+        'Reptile Terrarium 40G', 'Heat Lamp Reptile', 'Reptile Substrate', 'UVB Light Fixture', 'Reptile Hide Cave',
+        'Hamster Cage Deluxe', 'Exercise Wheel Silent', 'Hamster Bedding 56L', 'Small Pet Hay', 'Tunnel Tube Set',
+        'Dog GPS Tracker', 'Pet Camera WiFi', 'Smart Pet Door', 'Pet Activity Monitor', 'Bark Control Device',
+        'Dog Life Jacket', 'Pet Car Seat Cover', 'Dog Ramp Folding', 'Pet Stroller 3-Wheel', 'Dog Bike Trailer',
+        'Cat Window Perch', 'Cat Tunnel Crinkle', 'Catnip Spray Organic', 'Cat Grass Kit', 'Feather Wand Toy',
+        'Dog Dental Chew Pack', 'Pet Toothbrush Kit', 'Ear Cleaner Solution', 'Eye Wipe Gentle', 'Paw Balm Healing',
+        'Dog Training Clicker', 'Training Treat Bag', 'Puppy Chew Toy Set', 'Dog Puzzle Toy', 'Snuffle Mat',
+        'Heated Pet Bed', 'Cooling Mat Summer', 'Pet Blanket Sherpa', 'Donut Calming Bed', 'Cave Bed Hooded',
+        'Dog Pool Foldable', 'Pet Sprinkler Pad', 'Fetch Ball Launcher', 'Frisbee Dog', 'Rope Tug Toy',
+        'Cat Litter Deodorizer', 'Litter Mat Trapping', 'Litter Scoop Metal', 'Cat Litter Disposal', 'Litter Box Liner',
+        'Pet First Aid Kit', 'Flea Comb Fine', 'Tick Remover Tool', 'Pet Thermometer', 'Pill Pocket Treats',
+        'Dog Agility Set', 'Dog Tunnel Agility', 'Weave Poles Set', 'Jump Bar Adjustable', 'Pause Table',
+        'Rabbit Hutch Outdoor', 'Guinea Pig Cage XL', 'Chinchilla Dust Bath', 'Ferret Hammock', 'Hedgehog Wheel',
+        'Dog Bow Tie Set', 'Pet Party Hat Set', 'Dog Birthday Cake Mix', 'Pet Photo Prop Set', 'Paw Print Kit',
+        'Automatic Ball Launcher', 'Dog Treat Camera', 'Pet Drinking Buddy', 'Smart Food Scale Pet', 'Pet DNA Test Kit',
+        'Calming Collar Dog', 'Anxiety Vest Thunder', 'Calming Diffuser Cat', 'CBD Oil Pet', 'Calming Treats',
+        'Dog Sunglasses', 'Pet Life Vest Sport', 'Dog Camping Tent', 'Pet Travel Bowl Set', 'Collapsible Water Bottle',
+        'Poultry Feeder Auto', 'Chicken Coop Kit', 'Egg Incubator', 'Poultry Waterer', 'Nesting Box Set',
+        'Horse Grooming Kit', 'Horse Treat Bag', 'Fly Mask Horse', 'Lead Rope Horse', 'Hoof Pick Set',
+        'Pond Filter System', 'Koi Food Premium', 'Pond Pump 1500GPH', 'Pond Net Cover', 'Water Treatment Pond',
+        'Pet Memorial Stone', 'Urn Pet Wooden', 'Rainbow Bridge Frame', 'Paw Print Ornament', 'Pet Memory Book',
+        'Dog Subscription Box', 'Cat Subscription Box', 'Pet Vitamin Chews', 'Joint Supplement Dog', 'Probiotic Pet Daily',
+        'Elevated Feeder Stand', 'Slow Feeder Bowl', 'Travel Feeder Fold', 'Gravity Water Bowl', 'Heated Water Bowl'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1601758228041-f3b2795255f1',
+        'https://images.unsplash.com/photo-1587300003388-59208cc962cb',
+        'https://images.unsplash.com/photo-1548199973-03cce0bbc87b',
+        'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e',
+        'https://images.unsplash.com/photo-1588022274642-f238f77ec193',
+        'https://images.unsplash.com/photo-1592194996308-7b43878e84a6',
+        'https://images.unsplash.com/photo-1573865526739-10659fec78a5',
+        'https://images.unsplash.com/photo-1560807707-8cc77767d783',
+        'https://images.unsplash.com/photo-1587764379990-5e391244d1a5',
+        'https://images.unsplash.com/photo-1596854407944-bf87f6fdd49e',
+        'https://images.unsplash.com/photo-1450778869180-41d0601e0e68',
+        'https://images.unsplash.com/photo-1591946614720-90a587da4a36'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 6)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'size';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Premium pet products for your beloved companion''s health and happiness.',
+                '{"brand": "PetPals", "pet_safe": "Yes"}'::jsonb,
+                7, 22, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Blue', 'Red', 'Green', 'Pink', 'Gray', 'Brown'])[1 + floor(random() * 6)::INT];
+            v_media_count := 1 + floor(random() * 4)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('size', (ARRAY['Small', 'Medium', 'Large', 'XL'])[1 + ((v_sku_idx-1) % 4)], 'color', v_color),
+                    jsonb_build_object('pet_type', (ARRAY['Dog', 'Cat', 'Small Animal', 'Fish', 'Bird'])[1 + floor(random() * 5)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 7.99 + floor(random() * 92)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 18: Watches & Jewelry (cat_id=23)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Automatic Dress Watch', 'Chronograph Sport Watch', 'Diver Watch 200m', 'Pilot Watch GMT', 'Field Watch Canvas',
+        'Smartwatch Pro Ultra', 'Minimalist Watch Slim', 'Skeleton Watch Auto', 'Moon Phase Watch', 'World Timer Watch',
+        'Gold Chain Necklace', 'Diamond Stud Earrings', 'Sterling Silver Ring', 'Pearl Bracelet Classic', 'Sapphire Pendant',
+        'Tennis Bracelet Diamond', 'Hoop Earrings Gold', 'Signet Ring Men', 'Charm Bracelet Silver', 'Ruby Drop Earrings',
+        'Leather Strap Watch', 'Steel Bracelet Watch', 'NATO Strap Watch', 'Mesh Band Watch', 'Rubber Diver Watch',
+        'Wedding Band Platinum', 'Engagement Ring Solitaire', 'Eternity Band Diamond', 'Promise Ring Set', 'Anniversary Band',
+        'Cuff Bracelet Gold', 'Bangle Set Silver', 'Link Bracelet Chain', 'Beaded Bracelet Stone', 'Wrap Bracelet Leather',
+        'Pendant Necklace Rose', 'Choker Necklace Chain', 'Lariat Necklace Gold', 'Station Necklace', 'Layered Chain Set',
+        'Stud Earring Set 6', 'Huggie Hoop Set', 'Threader Earrings', 'Chandelier Earrings', 'Ear Cuff Set',
+        'Cocktail Ring Statement', 'Stackable Ring Set', 'Birthstone Ring', 'Band Ring Tungsten', 'Spinner Ring',
+        'Watch Box 12-Slot', 'Jewelry Box Velvet', 'Ring Holder Tree', 'Travel Jewelry Case', 'Watch Winder Dual',
+        'Watch Tool Kit', 'Watch Band Set 5', 'Watch Face Protector', 'Spring Bar Tool', 'Watch Cleaning Kit',
+        'Anklet Gold Chain', 'Toe Ring Set', 'Body Chain Gold', 'Belly Ring Surgical', 'Nose Stud Set',
+        'Brooch Vintage Pearl', 'Tie Clip Set', 'Money Clip Silver', 'Lapel Pin Set', 'Hat Pin Antique',
+        'Locket Necklace Photo', 'Medical Alert Bracelet', 'ID Bracelet Engrave', 'Compass Pendant', 'Cross Necklace',
+        'Lab Diamond Studs', 'Moissanite Ring', 'Cubic Zirconia Set', 'Lab Emerald Pendant', 'Lab Ruby Ring',
+        'Titanium Watch Band', 'Ceramic Watch Black', 'Carbon Fiber Watch', 'Bronze Vintage Watch', 'Wood Face Watch',
+        'Solar Powered Watch', 'Kinetic Watch Auto', 'Radio Controlled Watch', 'Atomic Watch Digital', 'Hybrid Smart Watch',
+        'Gold Vermeil Chain', 'Rose Gold Earrings', 'White Gold Pendant', 'Two-Tone Bracelet', 'Black Gold Ring',
+        'Turquoise Necklace', 'Amber Earrings', 'Jade Bangle', 'Opal Ring', 'Amethyst Pendant',
+        'Freshwater Pearl Set', 'Tahitian Pearl Studs', 'South Sea Pearl Ring', 'Baroque Pearl Chain', 'Coin Pearl Drop',
+        'Art Deco Brooch', 'Filigree Earrings', 'Celtic Knot Ring', 'Victorian Cameo', 'Art Nouveau Pendant',
+        'Sports Watch Rugged', 'Tactical Watch', 'Racing Watch Chrono', 'Sailing Watch Tide', 'Aviation Watch',
+        'Cufflinks Onyx', 'Cufflinks Mother Pearl', 'Cufflinks Enamel', 'Cufflinks Knot Gold', 'Cufflinks Carbon',
+        'Anklet Set Sterling', 'Beaded Necklace', 'Shell Jewelry Set', 'Leather Cord Necklace', 'Silk Thread Bracelet',
+        'Watch Stand Single', 'Earring Organizer', 'Necklace Display Bust', 'Ring Display Tray', 'Bracelet T-Bar',
+        'Engraved Bracelet', 'Custom Name Necklace', 'Initial Pendant', 'Birthstone Bracelet', 'Coordinates Necklace',
+        'Smart Ring Fitness', 'NFC Ring Payment', 'LED Light Ring', 'Mood Ring Modern', 'Fidget Ring Spinner',
+        'Pocket Watch Chain', 'Nurse Watch Clip', 'Pendant Watch', 'Fob Watch Set', 'Wrist Sundial Watch',
+        'Gem Testing Kit', 'Jewelry Polishing Set', 'Silver Dip Cleaner', 'Ultrasonic Cleaner', 'Gold Testing Kit',
+        'Charm Set Holiday', 'Charm Set Travel', 'Charm Set Animal', 'Charm Set Heart', 'Charm Set Zodiac'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1524592094714-0f0654e20314',
+        'https://images.unsplash.com/photo-1523170335258-f5ed11844a49',
+        'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b8',
+        'https://images.unsplash.com/photo-1533139502658-0198f920d8e8',
+        'https://images.unsplash.com/photo-1509048191080-d2984bad6ae5',
+        'https://images.unsplash.com/photo-1548171915-e79a380a2a4b',
+        'https://images.unsplash.com/photo-1526045431048-f857369baa09',
+        'https://images.unsplash.com/photo-1612817159949-195b6eb9e31a',
+        'https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6',
+        'https://images.unsplash.com/photo-1543294001-f7cd5d7fb516',
+        'https://images.unsplash.com/photo-1611591437281-460bfbe1220a',
+        'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 7)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'material';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Exquisite timepiece or jewelry crafted with precision and elegance.',
+                '{"brand": "StyleCraft", "authenticity": "Certified"}'::jsonb,
+                4, 23, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Silver', 'Gold', 'Rose Gold', 'Black', 'Two-Tone', 'Platinum'])[1 + floor(random() * 6)::INT];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('material', v_color, 'size', (ARRAY['One Size', 'Small', 'Medium', 'Large'])[1 + ((v_sku_idx-1) % 4)]),
+                    jsonb_build_object('packaging', 'Gift Box Included'),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 29.99 + floor(random() * 470)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    -- ==========================================================
+    -- Category 19: Gaming (cat_id=24)
+    -- ==========================================================
+    v_cat_products := ARRAY[
+        'Gaming Mouse RGB Pro', 'Mechanical Keyboard TKL', 'Gaming Headset 7.1', 'Gaming Monitor 27" 240Hz', 'Gaming Chair Ergonomic',
+        'Controller Wireless Pro', 'Gaming Mousepad XXL', 'Webcam Stream 4K', 'Capture Card 4K60', 'Stream Deck MK2',
+        'Graphics Card RTX 5080', 'Gaming SSD NVMe 2TB', 'RAM DDR5 32GB Kit', 'Gaming CPU Ryzen 9', 'AIO Cooler 360mm',
+        'PC Case ATX RGB', 'Power Supply 850W Gold', 'Gaming Motherboard Z890', 'Case Fan Pack 3x120', 'Cable Mod Set',
+        'VR Headset Pro', 'Racing Wheel Set', 'Flight Stick HOTAS', 'Arcade Stick Pro', 'Gaming Tablet Pen',
+        'Gaming Glasses Blue Light', 'Wrist Rest Gaming', 'Monitor Light Bar', 'Headphone Stand RGB', 'Cable Management Set',
+        'Microphone Condenser USB', 'Boom Arm Mic Stand', 'Pop Filter Metal', 'Audio Interface 2-Ch', 'Mixer Streaming',
+        'Green Screen Collapsible', 'Ring Light 18"', 'Key Light Panel', 'Softbox Kit', 'Camera Arm Mount',
+        'Gaming Router WiFi 7', 'Ethernet Switch 8Port', 'Cat 8 Cable 50ft', 'WiFi Adapter USB', 'Mesh WiFi System',
+        'Game Capture Software', 'Streaming Overlay Pack', 'Sound Alert Board', 'Chat Bot License', 'Emote Pack Custom',
+        'PS5 DualSense Edge', 'Xbox Elite Controller', 'Switch Pro Controller', 'Scuf Reflex Pro', 'Astro C40 TR',
+        'Gaming Desk 60"', 'Monitor Riser Glass', 'CPU Stand Wheels', 'Desk Shelf Monitor', 'Cable Tray Under',
+        'Mouse Bungee Pro', 'Grip Tape Mouse', 'Mouse Feet PTFE', 'Switch Tester Kit', 'Keycap Set PBT',
+        'Artisan Mousepad XL', 'Desk Mat Custom', 'Wrist Rest Keyboard', 'Palm Rest Wooden', 'Arm Rest Pad',
+        'RAM DDR5 64GB Kit', 'SSD NVMe 4TB Gen5', 'HDD 8TB NAS', 'Optical Drive External', 'Fan Controller',
+        'Custom Cable Set', 'GPU Support Bracket', 'Thermal Paste Premium', 'Anti-Sag GPU', 'Riser Cable PCIe',
+        'Gaming Projector 4K', 'Portable Monitor 15.6"', 'Ultrawide Monitor 34"', 'OLED Monitor 32"', 'Touch Monitor 24"',
+        'Surround Sound 5.1', 'Soundbar Gaming', 'Subwoofer Desk', 'Speaker Set 2.0', 'DAC/Amp Combo',
+        'Retro Console Mini', 'Handheld Gaming PC', 'TV Game Stick 4K', 'Retro Cart Adapter', 'Game Preservation Drive',
+        'Amiibo Figure Set', 'Gaming Poster Set', 'LED Wall Panel Set', 'Neon Sign Custom', 'Shelf Display Figure',
+        'D&D Dice Set Metal', 'MTG Deck Box', 'Card Sleeve Pack', 'Play Mat TCG', 'Dice Tower',
+        'Gaming Backpack', 'Console Carry Case', 'Controller Case Hard', 'VR Headset Case', 'Handheld Case',
+        'Chair Mat Hard Floor', 'Lumbar Pillow Gaming', 'Neck Pillow Gaming', 'Arm Pad Set', 'Footrest Gaming',
+        'Modding Tool Kit', 'LED Strip Kit Desk', 'Fan RGB Upgrade', 'Side Panel Glass', 'Dust Filter Set',
+        'Steering Wheel Stand', 'Racing Seat Cockpit', 'Pedal Set Pro', 'Handbrake Sim', 'Shifter Sequential',
+        'Eye Tracker Gaming', 'Haptic Vest Gaming', 'Motion Platform', 'Butt Kicker Gamer', 'Scent Device',
+        'Game Organizer Shelf', 'Controller Wall Mount', 'Headset Hook Under', 'Console Wall Mount', 'TV Mount Gaming',
+        'Keyboard Coiled Cable', 'Switches Cherry MX', 'Stabilizer Set', 'Lube Kit Switch', 'Foam Mod Kit',
+        'Power Strip Gaming', 'UPS Battery Backup', 'Smart Plug Strip', 'Surge Protector Pro', 'Extension Cord Flat',
+        'Gaming Socks Grip', 'Gaming Gloves Touch', 'Finger Sleeve Set', 'Hand Exerciser', 'Eye Drops Gamer',
+        'Score Pad Deluxe', 'Token Set Metal', 'Mini Figure Paint', 'Terrain Set Build', 'Battle Map Grid'
+    ];
+
+    v_cat_images := ARRAY[
+        'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf',
+        'https://images.unsplash.com/photo-1593305841991-05c297ba4575',
+        'https://images.unsplash.com/photo-1542751371-adc38448a05e',
+        'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3',
+        'https://images.unsplash.com/photo-1625805866449-3589fe3f71a3',
+        'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf',
+        'https://images.unsplash.com/photo-1598550476439-6847785fcea6',
+        'https://images.unsplash.com/photo-1600861194942-f883de0dfe96',
+        'https://images.unsplash.com/photo-1616588589676-62b3d4ff6412',
+        'https://images.unsplash.com/photo-1586182987320-4f376d39d787',
+        'https://images.unsplash.com/photo-1592840496694-26d035b52b48',
+        'https://images.unsplash.com/photo-1538481199705-c710c4e965fc'
+    ];
+
+    FOR v_prod_idx IN 1..least(150, array_length(v_cat_products, 1)) LOOP
+        v_sku_count := 1 + floor(random() * 7)::INT;
+        v_product_name := v_cat_products[v_prod_idx];
+        v_product_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=400&q=80';
+        v_primary_variant_key := 'color';
+
+        INSERT INTO products (name, description, attributes, vendor_id, category_id, primary_thumbnail_url, primary_variant_key)
+        VALUES (v_product_name,
+                v_product_name || ' - Level up your gaming setup with professional-grade peripherals and accessories.',
+                '{"brand": "TechVision", "rgb": "Yes", "warranty": "2 years"}'::jsonb,
+                1, 24, v_product_thumb, v_primary_variant_key)
+        RETURNING id INTO v_product_id;
+
+        v_default_sku := NULL;
+        FOR v_sku_idx IN 1..v_sku_count LOOP
+            v_color := (ARRAY['Black', 'White', 'Black/RGB', 'White/RGB', 'Gunmetal', 'Pink'])[1 + floor(random() * 6)::INT];
+            v_media_count := 1 + floor(random() * 5)::INT;
+            v_sku_thumb := v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] || '?w=200&q=80';
+
+            INSERT INTO product_media (media)
+            VALUES ((
+                SELECT jsonb_agg((SELECT jsonb_build_object(
+                        'url', img || '?w=' || (600 + i * 100) || '&q=80',
+                        'type', 'IMAGE',
+                        'primary', i = 1,
+                        'thumbnail', img || '?w=200&q=80'
+                    ) FROM (SELECT v_cat_images[1 + floor(random() * array_length(v_cat_images, 1))::INT] AS img) sub))
+                FROM generate_series(1, v_media_count) AS i
+            ))
+            RETURNING id INTO v_media_id;
+
+            INSERT INTO skus (product_id, variant_attributes, attributes, media_id, primary_thumbnail_url)
+            VALUES (v_product_id, jsonb_build_object('color', v_color),
+                    jsonb_build_object('connectivity', (ARRAY['Wired', 'Wireless', 'Bluetooth', 'USB-C', '2.4GHz'])[1 + floor(random() * 5)::INT]),
+                    v_media_id, v_sku_thumb)
+            RETURNING id INTO v_sku_id;
+
+            IF v_sku_idx = 1 THEN v_default_sku := v_sku_id; END IF;
+
+            v_base_price := 19.99 + floor(random() * 480)::DECIMAL;
+            v_effective_date := '2025-01-01'::TIMESTAMP;
+            FOR i IN 1..array_length(v_currencies, 1) LOOP
+                INSERT INTO prices (sku_id, effective_from, price_currency, price_amount)
+                VALUES (v_sku_id, v_effective_date, v_currencies[i], round(v_base_price * v_fx_rates[i], 2));
+            END LOOP;
+        END LOOP;
+        UPDATE products SET default_sku_id = v_default_sku WHERE id = v_product_id;
+    END LOOP;
+
+    RAISE NOTICE 'Product seed data generation complete!';
+END $$;
