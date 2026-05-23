@@ -22,7 +22,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "products")
@@ -35,6 +37,10 @@ public class Product {
   private String primaryThumbnailUrl;
   private long categoryId;
   private String primaryVariantKey;
+
+  @Transient
+  @Setter
+  private boolean inStock;
 
   @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<Sku> skus = new ArrayList<Sku>();

@@ -2,4 +2,4 @@
 
 ## Skills
 
-- [Observability](.claude/observability-skill.md) — Querying the observability stack (Loki, Tempo, Prometheus, Grafana)
+- [Project Overview](.claude/observability-skill.md) — Architecture, services, networking, and observability stack

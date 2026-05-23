@@ -6,5 +6,6 @@ public record ProductListingResponse(
     String description,
     String primaryThumbnailUrl,
     long categoryId,
+    boolean inStock,
     SkuResponseWithoutMedia defaultSku
 ) {};

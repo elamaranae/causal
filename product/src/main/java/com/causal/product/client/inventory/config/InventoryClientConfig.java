@@ -1,4 +1,4 @@
-package com.causal.cart.client.inventory.config;
+package com.causal.product.client.inventory.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
