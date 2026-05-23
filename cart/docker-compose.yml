@@ -1,11 +1,6 @@
 services:
   causal-cart-app:
     image: cart:latest
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://causal-cart-db:5432/cartdb
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://o11y-otel-collector:4318
     depends_on:
       causal-cart-db:
         condition: service_healthy

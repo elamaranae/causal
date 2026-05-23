@@ -1,11 +1,6 @@
 services:
   causal-orders-app:
     image: orders:latest
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://causal-orders-db:5432/ordersdb
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://o11y-otel-collector:4318
     depends_on:
       causal-orders-db:
         condition: service_healthy

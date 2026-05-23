@@ -1,11 +1,6 @@
 services:
   causal-inventory-app:
     image: inventory:latest
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://causal-inventory-db:5432/inventorydb
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://o11y-otel-collector:4318
     depends_on:
       causal-inventory-db:
         condition: service_healthy

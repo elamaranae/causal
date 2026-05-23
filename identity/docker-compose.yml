@@ -2,12 +2,8 @@ services:
   causal-identity-app:
     image: identity:latest
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://causal-identity-db:5432/userdb
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
       - JWT_PRIVATE_KEY_PATH=/keys/private.pem
       - JWT_PUBLIC_KEY_PATH=/keys/public.pem
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://o11y-otel-collector:4318
     volumes:
       - ../keys:/keys:ro
     depends_on:
