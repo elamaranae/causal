@@ -6,15 +6,15 @@ receivers:
 
 exporters:
   prometheusremotewrite:
-    endpoint: http://prometheus:9090/api/v1/write
+    endpoint: http://o11y-prometheus:9090/api/v1/write
 
   otlp_grpc/tempo:
-    endpoint: http://tempo:4317
+    endpoint: http://o11y-tempo:4317
     tls:
       insecure: true
 
   otlp_http/loki:
-    endpoint: http://loki:3100/otlp
+    endpoint: http://o11y-loki:3100/otlp
 
 processors:
   batch:

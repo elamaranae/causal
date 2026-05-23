@@ -1,30 +1,39 @@
 services:
-  inventory-app:
+  causal-inventory-app:
     image: inventory:latest
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://inventory-db:5432/inventorydb
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://causal-inventory-db:5432/inventorydb
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://o11y-otel-collector:4318
     depends_on:
-      inventory-db:
+      causal-inventory-db:
         condition: service_healthy
-  inventory-db:
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.40
+  causal-inventory-db:
     image: postgres:latest
     restart: always
     environment:
       - POSTGRES_DB=inventorydb
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
-    ports:
-      - "5435:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
     volumes:
-      - inventory-db-data:/var/lib/postgresql
+      - causal-inventory-db-data:/var/lib/postgresql
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.41
+
+networks:
+  causal-net:
+    external: true
+    name: causal_causal-net
 
 volumes:
-  inventory-db-data:
+  causal-inventory-db-data:

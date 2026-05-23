@@ -1,30 +1,39 @@
 services:
-  profile-app:
+  causal-profile-app:
     image: profile:latest
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://profile-db:5432/profiledb
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://causal-profile-db:5432/profiledb
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://o11y-otel-collector:4318
     depends_on:
-      profile-db:
+      causal-profile-db:
         condition: service_healthy
-  profile-db:
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.60
+  causal-profile-db:
     image: postgres:latest
     restart: always
     environment:
       - POSTGRES_DB=profiledb
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
-    ports:
-      - "5437:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
     volumes:
-      - profile-db-data:/var/lib/postgresql
+      - causal-profile-db-data:/var/lib/postgresql
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.61
+
+networks:
+  causal-net:
+    external: true
+    name: causal_causal-net
 
 volumes:
-  profile-db-data:
+  causal-profile-db-data:

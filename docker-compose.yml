@@ -5,12 +5,20 @@ include:
   - inventory/docker-compose.yml
 
 services:
-  gateway:
+  causal-gateway:
     image: caddy:latest
-    ports:
-      - "8090:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
-      - OTEL_SERVICE_NAME=gateway
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://o11y-otel-collector:4318
+      - OTEL_SERVICE_NAME=causal-gateway
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.2
+
+networks:
+  causal-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

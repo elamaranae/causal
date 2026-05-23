@@ -1,56 +1,60 @@
 :80 {
-        tracing {
-            span "{http.request.proto} {http.request.method} {http.request.uri.path}"
-        }
+  tracing {
+    span "{http.request.proto} {http.request.method} {http.request.uri.path}"
+  }
 
-	header X-Trace-Id "{http.vars.trace_id}"
+  header X-Trace-Id "{http.vars.trace_id}"
 
-	header Access-Control-Allow-Origin "{header.Origin}"
-	header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-	header Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-Token"
-	header Access-Control-Allow-Credentials "true"
-	header Access-Control-Max-Age "100"
+  header Access-Control-Allow-Origin "{header.Origin}"
+  header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  header Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-Token"
+  header Access-Control-Allow-Credentials "true"
+  header Access-Control-Max-Age "100"
 
-	@cors method OPTIONS
-	handle @cors {
-		respond 204
-	}
+  @cors method OPTIONS
+  handle @cors {
+    respond 204
+  }
 
-	# CSRF validation for mutating requests when cookies are present
-	@csrf_invalid {
-		method POST PUT PATCH DELETE
-		not path /auth/login /auth/register /auth/refresh /internal/*
-		not header_regexp Authorization "Bearer causal_.+"
-		header Cookie *
-		expression `{http.request.header.X-CSRF-Token} != {http.request.cookie.csrf_token} || {http.request.header.X-CSRF-Token} == ""`
-	}
+  # CSRF validation for mutating requests when cookies are present
+  @csrf_invalid {
+    method POST PUT PATCH DELETE
+    not path /auth/login /auth/register /auth/refresh /internal/*
+    not header_regexp Authorization "Bearer causal_.+"
+    header Cookie *
+    expression `{http.request.header.X-CSRF-Token} != {http.request.cookie.csrf_token} || {http.request.header.X-CSRF-Token} == ""`
+  }
 
-	handle @csrf_invalid {
-		respond "CSRF validation failed" 403
-	}
+  handle @csrf_invalid {
+    respond "CSRF validation failed" 403
+  }
 
-	@api_token header_regexp Authorization "Bearer causal_.+"
+  @api_token header_regexp Authorization "Bearer causal_.+"
 
-	route {
-		forward_auth @api_token identity-app:8080 {
-			uri /internal/token-exchange
-			copy_headers X-Forwarded-Authorization>Authorization
-		}
+  @api path /auth /auth/* /products /products/* /cart /cart/* /inventory /inventory/*
 
-		reverse_proxy /auth/* identity-app:8080
+  handle @api {
+    route {
+      forward_auth @api_token causal-identity-app:8080 {
+        uri /internal/token-exchange
+        copy_headers X-Forwarded-Authorization>Authorization
+      }
 
-		@products path /products /products/*
-		reverse_proxy @products product-app:8080
-		# reverse_proxy @products host.docker.internal:8080
+      @auth path /auth /auth/*
+      reverse_proxy @auth causal-identity-app:8080
 
-		@cart path /cart /cart/*
-		reverse_proxy @cart host.docker.internal:8080
-		# reverse_proxy @products cart-app:8080
+      @products path /products /products/*
+      reverse_proxy @products causal-product-app:8080
 
-		@inventory path /inventory /inventory/*
-		reverse_proxy @inventory inventory-app:8080
-		# reverse_proxy @inventory host.docker.internal:8080
+      @cart path /cart /cart/*
+      reverse_proxy @cart causal-cart-app:8080
 
-		respond 404
-	}
+      @inventory path /inventory /inventory/*
+      reverse_proxy @inventory causal-inventory-app:8080
+    }
+  }
+
+  handle {
+    reverse_proxy host.docker.internal:5173
+  }
 }
