@@ -1,6 +1,6 @@
 import { auth } from '$lib/auth.svelte';
 
-const BASE = import.meta.env.VITE_API_URL || 'http://causal-gateway';
+const BASE = import.meta.env.VITE_API_URL || 'http://causal-gateway/api';
 
 export const urls = {
   auth: {

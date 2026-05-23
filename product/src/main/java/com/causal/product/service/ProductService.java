@@ -30,18 +30,21 @@ public class ProductService {
   private final PriceRepository priceRepository;
   private final ProductMapper mapper;
   private final InventoryGateway inventoryGateway;
+  private final SkuService skuService;
 
-  public ProductService(ProductRepository productRepository, PriceRepository priceRepository, ProductMapper mapper, InventoryGateway inventoryGateway) {
+  public ProductService(ProductRepository productRepository, PriceRepository priceRepository, ProductMapper mapper, InventoryGateway inventoryGateway, SkuService skuService) {
     this.productRepository = productRepository;
     this.priceRepository = priceRepository;
     this.mapper = mapper;
     this.inventoryGateway = inventoryGateway;
+    this.skuService = skuService;
   }
 
   public ProductShowResponse getProduct(Long id) {
     Product product = productRepository.findWithSkusById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
     attachPricesToSkus(product.getSkus());
+    skuService.addStockDetailsToSkus(product.getSkus());
     return mapper.productShowResponseFrom(product);
   }
 

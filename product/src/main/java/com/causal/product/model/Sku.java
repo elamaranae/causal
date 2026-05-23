@@ -47,6 +47,9 @@ public class Sku {
   @Transient @Getter @Setter
   private Price price;
 
+  @Transient @Setter
+  private int stockQuantity;
+
   @Column(name = "product_id", insertable = false, updatable = false)
   private Long productId;
 

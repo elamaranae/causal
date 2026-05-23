@@ -8,5 +8,6 @@ public record SkuShowResponse(
     Map<String, Object> variantAttributes,
     MediaResponse media,
     PriceResponse price,
+    int stockQuantity,
     ProductMinimalResponse product
 ) {}
