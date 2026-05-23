@@ -73,7 +73,11 @@ export async function apiFetch(
 
 async function refreshTokens(): Promise<boolean> {
   try {
-    const res = await fetch(urls.auth.refresh, { method: 'POST', credentials: 'include' });
+    const res = await fetch(urls.auth.refresh, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' }
+    });
     if (res.ok) return true;
   } catch {
     // refresh request itself failed
