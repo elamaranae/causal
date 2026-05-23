@@ -1,6 +1,6 @@
 import { auth } from '$lib/auth.svelte';
 
-const BASE = import.meta.env.VITE_API_URL || 'http://causal-gateway/api';
+const BASE = import.meta.env.VITE_API_URL || 'http://causal-gateway';
 
 export const urls = {
   auth: {
@@ -38,6 +38,7 @@ export async function apiFetch(
   if (refreshPromise) await refreshPromise;
 
   const headers = new Headers(init.headers);
+  headers.set('Accept', 'application/json');
   if (init.body && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
@@ -74,10 +75,10 @@ async function refreshTokens(): Promise<boolean> {
   try {
     const res = await fetch(urls.auth.refresh, { method: 'POST', credentials: 'include' });
     if (res.ok) return true;
-    await auth.logout();
-    return false;
   } catch {
-    await auth.logout();
-    return false;
+    // refresh request itself failed
   }
+  auth.clearAll();
+  window.location.href = '/';
+  return false;
 }

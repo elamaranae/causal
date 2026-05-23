@@ -106,8 +106,8 @@
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {#each data.products as product (product.id)}
           {@const categoryName = getCategoryName(product.categoryId)}
-          <a href="/products/{product.id}" class="group flex flex-col bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-            <div class="aspect-square bg-slate-100 overflow-hidden">
+          <a href="/products/{product.id}" class="group flex flex-col bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow {!product.inStock ? 'opacity-60' : ''}">
+            <div class="relative aspect-square bg-slate-100 overflow-hidden">
               {#if product.primaryThumbnailUrl}
                 <img
                   src={product.primaryThumbnailUrl}
@@ -120,6 +120,11 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
                   </svg>
                 </div>
+              {/if}
+              {#if !product.inStock}
+                <span class="absolute top-2 left-2 text-[10px] font-semibold uppercase tracking-wider bg-slate-900 text-white px-2 py-0.5 rounded">
+                  Out of stock
+                </span>
               {/if}
             </div>
             <div class="p-4 flex flex-col gap-2 flex-1">

@@ -19,7 +19,7 @@
   # CSRF validation for mutating requests when cookies are present
   @csrf_invalid {
     method POST PUT PATCH DELETE
-    not path /api/auth/login /api/auth/register /api/auth/refresh /internal/*
+    not path /auth/login /auth/register /auth/refresh /internal/*
     not header_regexp Authorization "Bearer causal_.+"
     header Cookie *
     expression `{http.request.header.X-CSRF-Token} != {http.request.cookie.csrf_token} || {http.request.header.X-CSRF-Token} == ""`
@@ -31,7 +31,11 @@
 
   @api_token header_regexp Authorization "Bearer causal_.+"
 
-  handle_path /api/* {
+  @api expression `path('/api/*') || header({'Accept': 'application/json'})`
+
+  handle @api {
+    uri strip_prefix /api
+
     route {
       forward_auth @api_token causal-identity-app:8080 {
         uri /internal/token-exchange

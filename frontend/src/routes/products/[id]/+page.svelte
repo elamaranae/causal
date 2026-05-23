@@ -201,13 +201,18 @@
               <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 leading-tight">
                 {product.name}
               </h1>
-              <p class="mt-4 text-xl tracking-tight h-7">
+              <div class="mt-4 flex items-center gap-3 h-7">
               {#if selectedSku}
-                <span class="text-slate-900">${selectedSku.price.priceAmount.toFixed(2)}</span>
+                <span class="text-xl tracking-tight text-slate-900">${selectedSku.price.priceAmount.toFixed(2)}</span>
+                {#if selectedSku.stockQuantity <= 0}
+                  <span class="text-xs font-semibold uppercase tracking-wider text-red-600">Out of stock</span>
+                {:else if selectedSku.stockQuantity <= 5}
+                  <span class="text-xs font-medium text-amber-600">Only {selectedSku.stockQuantity} left</span>
+                {/if}
               {:else}
-                <span class="text-red-500">Unavailable</span>
+                <span class="text-xl tracking-tight text-red-500">Unavailable</span>
               {/if}
-            </p>
+            </div>
             </header>
 
             {#if product.description}
@@ -263,12 +268,13 @@
                   Remove from Cart
                 </button>
               {:else}
+                {@const canAdd = selectedSku && selectedSku.stockQuantity > 0}
                 <button
                   class="w-full h-12 text-sm font-medium tracking-wide uppercase rounded-sm transition-all cursor-pointer
-                    {selectedSku
+                    {canAdd
                       ? 'bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99]'
                       : 'bg-slate-100 text-slate-400 cursor-not-allowed'}"
-                  disabled={!selectedSku}
+                  disabled={!canAdd}
                   onclick={() => {
                     if (!auth.isAuthenticated) {
                       goto('/login');
@@ -279,7 +285,13 @@
                     }
                   }}
                 >
-                  {selectedSku ? 'Add to Cart' : 'Unavailable'}
+                  {#if !selectedSku}
+                    Unavailable
+                  {:else if selectedSku.stockQuantity <= 0}
+                    Out of Stock
+                  {:else}
+                    Add to Cart
+                  {/if}
                 </button>
               {/if}
             </div>

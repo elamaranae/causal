@@ -35,6 +35,17 @@ class AuthState {
     }
   }
 
+  clearAll() {
+    this.user = null;
+    if (browser) {
+      localStorage.removeItem('user');
+      // Clear auth cookies
+      for (const name of ['access_token', 'refresh_token', 'csrf_token']) {
+        document.cookie = `${name}=; Max-Age=0; path=/`;
+      }
+    }
+  }
+
   private clear() {
     this.user = null;
     if (browser) localStorage.removeItem('user');

@@ -83,7 +83,7 @@
 
                             <div class="ml-4 flex flex-1 flex-col">
                               <div>
-                                <h3 class="text-base font-medium text-slate-900">{item.sku.product.name}</h3>
+                                <a href="/products/{item.sku.product.id}" class="text-base font-medium text-slate-900 hover:underline" onclick={close}>{item.sku.product.name}</a>
                                 {#if Object.keys(item.sku.variantAttributes).length > 0}
                                   <p class="mt-0.5 text-xs text-slate-500">{formatVariant(item.sku.variantAttributes)}</p>
                                 {/if}

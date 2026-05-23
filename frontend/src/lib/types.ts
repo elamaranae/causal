@@ -15,6 +15,7 @@ export interface ProductListing {
   name: string;
   primaryThumbnailUrl: string | null;
   categoryId: number;
+  inStock: boolean;
   defaultSku: DefaultSku;
 }
 
@@ -31,6 +32,7 @@ export interface Sku {
   variantAttributes: Record<string, string>;
   media: { id: number; media: MediaItem[] } | null;
   price: Price;
+  stockQuantity: number;
 }
 
 export interface ProductShow {
@@ -75,6 +77,7 @@ export interface SkuDetail {
   variantAttributes: Record<string, string>;
   media: { id: number; media: MediaItem[] } | null;
   price: Price;
+  stockQuantity: number;
   product: SkuProduct;
 }
 
