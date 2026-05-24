@@ -18,6 +18,11 @@ export const urls = {
     show: (id: number | string) => `${BASE}/products/${id}`,
     skusBulk: `${BASE}/products/skus/bulk`
   },
+  profile: {
+    me: `${BASE}/profiles/me`,
+    addresses: `${BASE}/profiles/me/addresses`,
+    address: (id: number) => `${BASE}/profiles/me/addresses/${id}`
+  },
   cart: {
     me: `${BASE}/cart/me`,
     addItem: `${BASE}/cart/me/items`,

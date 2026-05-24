@@ -89,6 +89,7 @@ src/
     +page.svelte        # Home: category sidebar + product grid + pagination
     login/+page.svelte  # Login form
     register/+page.svelte # Register form
+    profile/+page.svelte  # Profile & address management (auth-guarded)
     products/[id]/
       +page.ts          # Loads single product
       +page.svelte      # Product detail: gallery, variant selector, add/remove cart
@@ -109,6 +110,8 @@ src/
 Auth: `POST /auth/login`, `POST /auth/register`, `POST /auth/logout`, `POST /auth/refresh`, `GET /auth/me`
 Products: `GET /products/trending`, `GET /products/categories`, `GET /products/filter?categoryId=&page=&size=`, `GET /products/{id}`, `POST /products/skus/bulk`
 Cart: `GET /cart/me`, `DELETE /cart/me`, `POST /cart/me/items`, `PATCH /cart/me/items/{id}`, `DELETE /cart/me/items/{id}`
+Profile: `GET /profiles/me`, `POST /profiles/me`, `PATCH /profiles/me`
+Addresses: `GET /profiles/me/addresses`, `POST /profiles/me/addresses`, `PATCH /profiles/me/addresses/{id}`, `DELETE /profiles/me/addresses/{id}`
 
 ## Svelte MCP Tools
 

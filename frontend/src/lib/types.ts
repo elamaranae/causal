@@ -104,3 +104,25 @@ export interface User {
   id: string;
   email: string;
 }
+
+export interface Profile {
+  id: number;
+  userId: number;
+  firstName: string;
+  lastName: string;
+  currency: string;
+  defaultAddressId: number | null;
+}
+
+export interface Address {
+  id: number;
+  userId: number;
+  label: string | null;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  country: string;
+  pincode: string;
+  phoneNumber: string | null;
+}

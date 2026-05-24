@@ -6,7 +6,9 @@ import com.causal.profile.dto.request.AddressUpdateRequest;
 import com.causal.profile.dto.response.AddressShowResponse;
 import com.causal.profile.mapper.ProfileMapper;
 import com.causal.profile.model.Address;
+import com.causal.profile.model.Profile;
 import com.causal.profile.repository.AddressRepository;
+import com.causal.profile.repository.ProfileRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,11 +20,13 @@ import java.util.List;
 public class AddressService {
 
     private final AddressRepository addressRepository;
+    private final ProfileRepository profileRepository;
     private final ProfileMapper profileMapper;
     private final CurrentUser currentUser;
 
-    public AddressService(AddressRepository addressRepository, ProfileMapper profileMapper, CurrentUser currentUser) {
+    public AddressService(AddressRepository addressRepository, ProfileRepository profileRepository, ProfileMapper profileMapper, CurrentUser currentUser) {
         this.addressRepository = addressRepository;
+        this.profileRepository = profileRepository;
         this.profileMapper = profileMapper;
         this.currentUser = currentUser;
     }
@@ -34,9 +38,13 @@ public class AddressService {
                 .toList();
     }
 
+    @Transactional
     public AddressShowResponse createAddress(AddressCreateRequest request) {
+        Long userId = currentUser.id();
+        boolean isFirst = !addressRepository.existsByUserId(userId);
+
         Address address = new Address();
-        address.setUserId(currentUser.id());
+        address.setUserId(userId);
         address.setLabel(request.label());
         address.setLine1(request.line1());
         address.setLine2(request.line2());
@@ -46,6 +54,13 @@ public class AddressService {
         address.setPincode(request.pincode());
         address.setPhoneNumber(request.phoneNumber());
         addressRepository.save(address);
+
+        if (isFirst) {
+            profileRepository.findByUserId(userId).ifPresent(profile -> {
+                profile.setDefaultAddressId(address.getId());
+            });
+        }
+
         return profileMapper.from(address);
     }
 

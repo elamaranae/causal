@@ -1,20 +1,22 @@
 <script lang="ts">
-  let { 
-    id, 
-    label, 
-    type = 'text', 
-    placeholder = '', 
-    value = $bindable(), 
+  let {
+    id,
+    label,
+    type = 'text',
+    placeholder = '',
+    value = $bindable(),
     required = false,
-    class: className = '' 
-  }: { 
-    id: string, 
-    label: string, 
-    type?: string, 
-    placeholder?: string, 
-    value: string, 
-    required?: boolean, 
-    class?: string 
+    maxlength,
+    class: className = ''
+  }: {
+    id: string,
+    label: string,
+    type?: string,
+    placeholder?: string,
+    value: string,
+    required?: boolean,
+    maxlength?: number,
+    class?: string
   } = $props();
 </script>
 
@@ -26,6 +28,7 @@
     {placeholder}
     bind:value
     {required}
+    {maxlength}
     class="appearance-none block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-slate-500 focus:border-slate-500 sm:text-sm transition-colors duration-200"
   />
 </div>
