@@ -9,26 +9,38 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Instant;
 
 @Entity
-@Table(name = "profiles")
+@Table(name = "addresses")
 @Getter
 @Setter
-public class Profile {
+public class Address {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private Long userId;
 
-    private String firstName;
-
-    private String lastName;
+    private String label;
 
     @Column(nullable = false)
-    private String currency = "USD";
+    private String line1;
 
-    private Long defaultAddressId;
+    private String line2;
+
+    @Column(nullable = false)
+    private String city;
+
+    @Column(nullable = false)
+    private String state;
+
+    @Column(nullable = false)
+    private String country;
+
+    @Column(nullable = false)
+    private String pincode;
+
+    private String phoneNumber;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

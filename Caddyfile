@@ -53,6 +53,9 @@
 
       @inventory path /inventory /inventory/*
       reverse_proxy @inventory causal-inventory-app:8080
+
+      @profiles path /profiles /profiles/*
+      reverse_proxy @profiles causal-profile-app:8080
     }
   }
 

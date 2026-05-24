@@ -1,10 +1,11 @@
 package com.causal.profile.controller;
 
+import com.causal.profile.dto.request.ProfileCreateRequest;
+import com.causal.profile.dto.request.ProfileUpdateRequest;
 import com.causal.profile.dto.response.ProfileShowResponse;
 import com.causal.profile.service.ProfileService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class ProfileController {
@@ -15,8 +16,23 @@ public class ProfileController {
         this.profileService = profileService;
     }
 
-    @GetMapping("profiles/{userId}")
+    @GetMapping("/profiles/me")
+    public ProfileShowResponse getCurrentUserProfile() {
+        return profileService.getCurrentUserProfile();
+    }
+
+    @GetMapping("/profiles/{userId}")
     public ProfileShowResponse getProfile(@PathVariable Long userId) {
         return profileService.getProfile(userId);
+    }
+
+    @PostMapping("/profiles/me")
+    public ProfileShowResponse createProfile(@Validated @RequestBody ProfileCreateRequest request) {
+        return profileService.createProfile(request);
+    }
+
+    @PatchMapping("/profiles/me")
+    public ProfileShowResponse updateProfile(@Validated @RequestBody ProfileUpdateRequest request) {
+        return profileService.updateProfile(request);
     }
 }

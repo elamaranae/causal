@@ -5,6 +5,6 @@ public record ProfileShowResponse(
         long userId,
         String firstName,
         String lastName,
-        String email,
-        String phone
+        String currency,
+        Long defaultAddressId
 ) {}
