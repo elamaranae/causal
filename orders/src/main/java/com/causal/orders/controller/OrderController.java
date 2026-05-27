@@ -5,6 +5,7 @@ import com.causal.orders.dto.response.OrderStatusResponse;
 import com.causal.orders.service.OrderService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -24,5 +25,10 @@ public class OrderController {
     @GetMapping("orders/{id}/status")
     public OrderStatusResponse getOrderStatus(@PathVariable Long id) {
         return orderService.getOrderStatus(id);
+    }
+
+    @PostMapping("orders/checkout")
+    public OrderShowResponse checkout() {
+        return orderService.checkout();
     }
 }
