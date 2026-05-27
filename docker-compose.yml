@@ -4,6 +4,7 @@ include:
   - cart/docker-compose.yml
   - inventory/docker-compose.yml
   - profile/docker-compose.yml
+  - order/docker-compose.yml
 
 services:
   causal-gateway:
