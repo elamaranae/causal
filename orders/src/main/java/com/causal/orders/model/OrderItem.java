@@ -2,6 +2,7 @@ package com.causal.orders.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -11,6 +12,7 @@ import java.time.Instant;
 @Entity
 @Table(name = "order_items")
 @Getter
+@Setter
 public class OrderItem {
 
     @Id
@@ -27,7 +29,11 @@ public class OrderItem {
     @Column(nullable = false)
     private Integer quantity = 1;
 
-    private BigDecimal price;
+    private String deliveryStatus = "PENDING";
+    private BigDecimal purchaseAmount;
+    private String purchaseCurrency;
+    private String skuName;
+    private String skuDescription;
 
     @CreationTimestamp
     private Instant createdAt;

@@ -26,7 +26,18 @@ public class Order {
     @Column(nullable = false)
     private String status = "PENDING";
 
+    private String idempotencyKey;
     private BigDecimal totalAmount;
+    private String totalCurrency;
+
+    private String addressLabel;
+    private String addressLine1;
+    private String addressLine2;
+    private String addressCity;
+    private String addressState;
+    private String addressCountry;
+    private String addressPincode;
+    private String addressPhoneNumber;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
