@@ -11,11 +11,13 @@ public class CartClientConfig {
 
     @Bean
     RestClientHttpServiceGroupConfigurer cartGroupConfigurer() {
-        return groups -> groups.filterByName("cart")
-                .forEachClient((group, builder) ->
-                        builder.requestInitializer(request -> {
-                            var auth = SecurityContextHolder.getContext().getAuthentication();
-                            if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
+        return groups -> groups
+                .filterByName("cart")
+                .forEachClient((group, builder) -> builder
+                        .requestInitializer(request -> {
+                            Object principal = SecurityContextHolder.getContext()
+                                    .getAuthentication().getPrincipal();
+                            if (principal instanceof Jwt jwt) {
                                 request.getHeaders().setBearerAuth(jwt.getTokenValue());
                             }
                         }));

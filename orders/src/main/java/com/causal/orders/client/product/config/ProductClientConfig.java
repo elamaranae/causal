@@ -11,11 +11,13 @@ public class ProductClientConfig {
 
     @Bean
     RestClientHttpServiceGroupConfigurer productGroupConfigurer() {
-        return groups -> groups.filterByName("product")
-                .forEachClient((group, builder) ->
-                        builder.requestInitializer(request -> {
-                            var auth = SecurityContextHolder.getContext().getAuthentication();
-                            if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
+        return groups -> groups
+                .filterByName("product")
+                .forEachClient((group, builder) -> builder
+                        .requestInitializer(request -> {
+                            Object principal = SecurityContextHolder.getContext()
+                                    .getAuthentication().getPrincipal();
+                            if (principal instanceof Jwt jwt) {
                                 request.getHeaders().setBearerAuth(jwt.getTokenValue());
                             }
                         }));
