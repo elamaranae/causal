@@ -1,17 +1,17 @@
 services:
-  causal-orders-app:
-    image: orders:latest
+  causal-order-app:
+    image: order:latest
     depends_on:
-      causal-orders-db:
+      causal-order-db:
         condition: service_healthy
     networks:
       causal-net:
         ipv4_address: 172.20.0.50
-  causal-orders-db:
+  causal-order-db:
     image: postgres:latest
     restart: always
     environment:
-      - POSTGRES_DB=ordersdb
+      - POSTGRES_DB=orderdb
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
     healthcheck:
@@ -20,7 +20,7 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - causal-orders-db-data:/var/lib/postgresql
+      - causal-order-db-data:/var/lib/postgresql
     networks:
       causal-net:
         ipv4_address: 172.20.0.51
@@ -31,4 +31,4 @@ networks:
     name: causal_causal-net
 
 volumes:
-  causal-orders-db-data:
+  causal-order-db-data:
