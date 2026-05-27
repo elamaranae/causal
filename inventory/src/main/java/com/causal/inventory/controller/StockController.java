@@ -1,9 +1,12 @@
 package com.causal.inventory.controller;
 
 import com.causal.inventory.dto.request.StockProductBulkGetRequest;
+import com.causal.inventory.dto.request.StockReserveRequest;
 import com.causal.inventory.dto.request.StockSkuBulkGetRequest;
 import com.causal.inventory.dto.response.ProductStockShowResponse;
+import com.causal.inventory.dto.response.ReservationResponse;
 import com.causal.inventory.dto.response.StockShowResponse;
+import com.causal.inventory.service.ReservationService;
 import com.causal.inventory.service.StockService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -14,9 +17,11 @@ import java.util.List;
 public class StockController {
 
     private final StockService stockService;
+    private final ReservationService reservationService;
 
-    public StockController(StockService stockService) {
+    public StockController(StockService stockService, ReservationService reservationService) {
         this.stockService = stockService;
+        this.reservationService = reservationService;
     }
 
     @GetMapping("inventory/stocks/{sku_id}")
@@ -32,5 +37,10 @@ public class StockController {
     @PostMapping("inventory/stocks/products/bulk")
     public List<ProductStockShowResponse> getStocksByProductIds(@Valid @RequestBody StockProductBulkGetRequest request) {
         return stockService.getStocksByProductIds(request.productIds());
+    }
+
+    @PostMapping("inventory/stocks/reserve")
+    public ReservationResponse reserve(@Valid @RequestBody StockReserveRequest request) {
+        return reservationService.reserve(request);
     }
 }
