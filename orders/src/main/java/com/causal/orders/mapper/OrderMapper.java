@@ -1,9 +1,11 @@
 package com.causal.orders.mapper;
 
+import com.causal.orders.dto.response.AddressResponse;
 import com.causal.orders.dto.response.OrderItemShowResponse;
 import com.causal.orders.dto.response.OrderShowResponse;
 import com.causal.orders.dto.response.PriceResponse;
 import com.causal.orders.model.Order;
+import com.causal.orders.model.OrderAddress;
 import com.causal.orders.model.OrderItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -17,6 +19,8 @@ public interface OrderMapper {
 
     @Mapping(target = "price", source = ".", qualifiedByName = "itemPrice")
     OrderItemShowResponse from(OrderItem item);
+
+    AddressResponse from(OrderAddress address);
 
     @Named("orderTotal")
     default PriceResponse orderTotal(Order order) {

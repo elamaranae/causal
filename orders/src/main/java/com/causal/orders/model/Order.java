@@ -30,14 +30,13 @@ public class Order {
     private BigDecimal totalAmount;
     private String totalCurrency;
 
-    private String addressLabel;
-    private String addressLine1;
-    private String addressLine2;
-    private String addressCity;
-    private String addressState;
-    private String addressCountry;
-    private String addressPincode;
-    private String addressPhoneNumber;
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "shipping_address_id")
+    private OrderAddress shippingAddress;
+
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "billing_address_id")
+    private OrderAddress billingAddress;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();

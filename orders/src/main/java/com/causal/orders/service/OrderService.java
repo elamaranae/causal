@@ -19,7 +19,7 @@ public class OrderService {
     }
 
     public OrderShowResponse getOrder(Long id) {
-        return orderRepository.findById(id)
+        return orderRepository.findDetailById(id)
                 .map(orderMapper::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
     }
