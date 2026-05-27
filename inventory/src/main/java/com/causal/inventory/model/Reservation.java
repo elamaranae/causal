@@ -7,25 +7,21 @@ import lombok.Setter;
 import java.time.Instant;
 
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "stocks")
+@Table(name = "reservations")
 @Getter
 @Setter
-public class Stock {
+public class Reservation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long orderId;
     private Long skuId;
-    private Long productId;
-    private Integer quantity = 0;
-    private Integer availableCount = 0;
+    private Integer quantity;
+    private Instant expiresAt;
 
     @CreationTimestamp
     private Instant createdAt;
-
-    @UpdateTimestamp
-    private Instant updatedAt;
 }
