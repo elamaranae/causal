@@ -21,8 +21,9 @@ repositories {
 }
 
 dependencies {
-  	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-        runtimeOnly("org.postgresql:postgresql")
+  implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+  implementation("org.springframework.boot:spring-boot-starter-validation")
+  runtimeOnly("org.postgresql:postgresql")
 	implementation("org.flywaydb:flyway-core")
 	implementation("org.flywaydb:flyway-database-postgresql")
 
@@ -30,16 +31,17 @@ dependencies {
 	annotationProcessor("org.mapstruct:mapstruct-processor:1.6.3")
 	annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 
-        developmentOnly("org.springframework.boot:spring-boot-devtools")
+  developmentOnly("org.springframework.boot:spring-boot-devtools")
 
 
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	implementation("org.springframework.boot:spring-boot-starter-restclient")
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 	implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 	implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.16.0-alpha")
 	implementation("io.opentelemetry.instrumentation:opentelemetry-jdbc:2.16.0-alpha")
-        testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
+  testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-security-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")

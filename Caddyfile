@@ -45,8 +45,8 @@
       @auth path /auth /auth/*
       reverse_proxy @auth causal-identity-app:8080
 
-      @products path /products /products/*
-      reverse_proxy @products causal-product-app:8080
+      @product path /products /products/*
+      reverse_proxy @product causal-product-app:8080
 
       @cart path /cart /cart/*
       reverse_proxy @cart causal-cart-app:8080
@@ -54,8 +54,13 @@
       @inventory path /inventory /inventory/*
       reverse_proxy @inventory causal-inventory-app:8080
 
-      @profiles path /profiles /profiles/*
-      reverse_proxy @profiles causal-profile-app:8080
+      @profile path /profiles /profiles/*
+      reverse_proxy @profile causal-profile-app:8080
+
+      @order path /orders /orders/*
+      reverse_proxy @order causal-order-app:8080
+
+      respond 404
     }
   }
 

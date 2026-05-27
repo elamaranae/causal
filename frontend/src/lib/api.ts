@@ -28,6 +28,12 @@ export const urls = {
     addItem: `${BASE}/cart/me/items`,
     updateItem: (id: number) => `${BASE}/cart/me/items/${id}`,
     removeItem: (id: number) => `${BASE}/cart/me/items/${id}`
+  },
+  orders: {
+    checkout: `${BASE}/orders/checkout`,
+    show: (id: number) => `${BASE}/orders/${id}`,
+    status: (id: number) => `${BASE}/orders/${id}/status`,
+    pay: (id: number) => `${BASE}/orders/${id}/pay`
   }
 } as const;
 

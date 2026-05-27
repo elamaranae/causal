@@ -1,5 +1,6 @@
 package com.causal.order.mapper;
 
+import com.causal.order.dto.request.AddressRequest;
 import com.causal.order.dto.response.AddressResponse;
 import com.causal.order.dto.response.OrderItemShowResponse;
 import com.causal.order.dto.response.OrderShowResponse;
@@ -21,6 +22,8 @@ public interface OrderMapper {
     OrderItemShowResponse from(OrderItem item);
 
     AddressResponse from(OrderAddress address);
+
+    OrderAddress from(AddressRequest request);
 
     @Named("orderTotal")
     default PriceResponse orderTotal(Order order) {

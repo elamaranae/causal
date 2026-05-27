@@ -1,12 +1,39 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { cart } from '$lib/cart.svelte';
+  import { apiFetch, urls } from '$lib/api';
+  import type { Order } from '$lib/types';
   import Button from './Button.svelte';
   import { fade, fly } from 'svelte/transition';
 
   let { isOpen = $bindable(false) }: { isOpen: boolean } = $props();
 
+  let checkingOut = $state(false);
+  let checkoutError = $state<string | null>(null);
+
   function close() {
     isOpen = false;
+  }
+
+  async function checkout() {
+    checkingOut = true;
+    checkoutError = null;
+    try {
+      const res = await apiFetch(urls.orders.checkout, { method: 'POST' });
+      if (res.ok) {
+        const order: Order = await res.json();
+        cart.clear();
+        close();
+        goto(`/orders/payment?orderId=${order.id}`);
+      } else {
+        const data = await res.json();
+        checkoutError = data.message || 'Checkout failed';
+      }
+    } catch (err: unknown) {
+      checkoutError = err instanceof Error ? err.message : 'Something went wrong';
+    } finally {
+      checkingOut = false;
+    }
   }
 
   function getThumbnail(item: (typeof cart.items)[number]): string | null {
@@ -129,8 +156,13 @@
                     <p>Subtotal</p>
                     <p>${cart.totalPrice.toFixed(2)}</p>
                   </div>
+                  {#if checkoutError}
+                    <p class="text-red-600 text-sm mt-2">{checkoutError}</p>
+                  {/if}
                   <div class="mt-6">
-                    <Button variant="primary" class="w-full py-3 text-base">Checkout</Button>
+                    <Button variant="primary" class="w-full py-3 text-base" onclick={checkout} disabled={checkingOut}>
+                      {checkingOut ? 'Placing order...' : 'Checkout'}
+                    </Button>
                   </div>
                   <div class="mt-6 flex justify-center text-center text-sm text-slate-500">
                     <button

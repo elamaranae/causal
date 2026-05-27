@@ -126,3 +126,34 @@ export interface Address {
   pincode: string;
   phoneNumber: string | null;
 }
+
+export interface OrderAddress {
+  id: number;
+  label: string | null;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  country: string;
+  pincode: string;
+  phoneNumber: string | null;
+}
+
+export interface OrderItem {
+  id: number;
+  skuId: number;
+  quantity: number;
+  skuName: string;
+  skuDescription: string;
+  deliveryStatus: string;
+  price: Price;
+}
+
+export interface Order {
+  id: number;
+  status: string;
+  total: Price;
+  shippingAddress: OrderAddress | null;
+  billingAddress: OrderAddress | null;
+  items: OrderItem[];
+}

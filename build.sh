@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-services=(identity profile product orders cart inventory)
+services=(identity profile product order cart inventory)
 pids=()
 failures=()
 
