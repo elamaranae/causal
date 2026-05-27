@@ -1,5 +1,6 @@
 package com.causal.order.client.inventory;
 
+import com.causal.order.client.inventory.dto.request.ReservationExtendRequest;
 import com.causal.order.client.inventory.dto.request.StockReserveRequest;
 import com.causal.order.client.inventory.dto.response.ReservationResponse;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -11,4 +12,7 @@ public interface InventoryClient {
 
     @PostExchange("/stocks/reserve")
     ReservationResponse reserve(@RequestBody StockReserveRequest request);
+
+    @PostExchange("/reservations/extend")
+    ReservationResponse extend(@RequestBody ReservationExtendRequest request);
 }

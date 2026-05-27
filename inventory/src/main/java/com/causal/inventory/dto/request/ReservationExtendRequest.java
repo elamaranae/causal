@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.util.List;
 
-public record StockReserveRequest(
+public record ReservationExtendRequest(
         @NotNull @Positive Long userId,
         @NotNull @Positive Long orderId,
         @NotEmpty List<@Valid StockReservationItemRequest> items

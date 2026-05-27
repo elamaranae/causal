@@ -1,5 +1,6 @@
 package com.causal.inventory.service;
 
+import com.causal.inventory.dto.request.ReservationExtendRequest;
 import com.causal.inventory.dto.request.StockReservationItemRequest;
 import com.causal.inventory.dto.request.StockReserveRequest;
 import com.causal.inventory.dto.response.ReservationResponse;
@@ -11,6 +12,7 @@ import com.causal.inventory.repository.StockRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -25,6 +27,8 @@ import java.util.stream.Collectors;
 public class ReservationService {
 
     private static final int RESERVATION_EXPIRY_MINUTES = 15;
+    private static final int EXTEND_MINUTES = 5;
+    private static final int MAX_LIFETIME_MINUTES = 10;
 
     private final ReservationRepository reservationRepository;
     private final StockRepository stockRepository;
@@ -91,6 +95,7 @@ public class ReservationService {
             Instant expiresAt = Instant.now().plus(RESERVATION_EXPIRY_MINUTES, ChronoUnit.MINUTES);
             List<Reservation> reservations = request.items().stream().map(item -> {
                 Reservation reservation = new Reservation();
+                reservation.setUserId(request.userId());
                 reservation.setOrderId(request.orderId());
                 reservation.setSkuId(item.skuId());
                 reservation.setQuantity(item.quantity());
@@ -101,6 +106,38 @@ public class ReservationService {
         });
 
         return failed;
+    }
+
+    @Transactional
+    public ReservationResponse extend(ReservationExtendRequest request) {
+        List<Reservation> existing = reservationRepository.findByUserIdAndOrderId(request.userId(), request.orderId());
+
+        if (existing.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No reservations found for user: " + request.userId() + " and order: " + request.orderId());
+        }
+
+        // Verify all requested items match existing reservations
+        Map<Long, Integer> bySkuId = existing.stream()
+                .collect(Collectors.toMap(Reservation::getSkuId, Reservation::getQuantity));
+
+        boolean allMatch = request.items().size() == existing.size()
+                && request.items().stream().allMatch(item ->
+                        item.quantity().equals(bySkuId.get(item.skuId())));
+
+        if (!allMatch) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Reservation mismatch for order: " + request.orderId());
+        }
+
+        Instant now = Instant.now();
+        for (Reservation reservation : existing) {
+            Instant extendedExpiry = now.plus(EXTEND_MINUTES, ChronoUnit.MINUTES);
+            Instant maxExpiry = reservation.getCreatedAt().plus(MAX_LIFETIME_MINUTES, ChronoUnit.MINUTES);
+            reservation.setExpiresAt(extendedExpiry.isBefore(maxExpiry) ? extendedExpiry : maxExpiry);
+        }
+
+        reservationRepository.saveAll(existing);
+        return toResponse(request.orderId(), existing);
     }
 
     private void reclaimExpired(Long skuId) {

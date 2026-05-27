@@ -17,6 +17,7 @@ public class Reservation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long userId;
     private Long orderId;
     private Long skuId;
     private Integer quantity;

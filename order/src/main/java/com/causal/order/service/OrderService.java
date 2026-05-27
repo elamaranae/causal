@@ -109,7 +109,7 @@ public class OrderService {
                 .map(item -> new StockReservationItemRequest(item.skuId(), item.quantity()))
                 .toList();
         try {
-            return inventoryGateway.reserve(order.getId(), items);
+            return inventoryGateway.reserve(order.getUserId(), order.getId(), items);
         } catch (Exception e) {
             order.setStatus("FAILED");
             orderRepository.save(order);
@@ -151,6 +151,28 @@ public class OrderService {
     }
 
     public void pay(Long id, PaymentRequest request) {
-        // TODO: process payment
+        Order order = orderRepository.findDetailById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        if (!"RESERVED".equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is not in RESERVED status");
+        }
+
+        // Extend reservation while processing payment
+        List<StockReservationItemRequest> items = order.getItems().stream()
+                .map(item -> new StockReservationItemRequest(item.getSkuId(), item.getQuantity()))
+                .toList();
+        try {
+            inventoryGateway.extendReservation(order.getUserId(), order.getId(), items);
+        } catch (Exception e) {
+            order.setStatus("RESERVATION_EXPIRED");
+            orderRepository.save(order);
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Reservation expired, please checkout again");
+        }
+
+        // TODO: process payment with payment provider
+
+        order.setStatus("PAYMENT_INITIATED");
+        orderRepository.save(order);
     }
 }

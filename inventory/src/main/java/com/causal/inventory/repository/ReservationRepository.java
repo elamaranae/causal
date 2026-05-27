@@ -9,5 +9,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByOrderId(Long orderId);
 
+    List<Reservation> findByUserIdAndOrderId(Long userId, Long orderId);
+
     List<Reservation> findBySkuIdAndExpiresAtLessThanEqual(Long skuId, Instant now);
 }
