@@ -1,6 +1,7 @@
 package com.causal.orders.controller;
 
 import com.causal.orders.dto.response.OrderShowResponse;
+import com.causal.orders.dto.response.OrderStatusResponse;
 import com.causal.orders.service.OrderService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,5 +19,10 @@ public class OrderController {
     @GetMapping("orders/{id}")
     public OrderShowResponse getOrder(@PathVariable Long id) {
         return orderService.getOrder(id);
+    }
+
+    @GetMapping("orders/{id}/status")
+    public OrderStatusResponse getOrderStatus(@PathVariable Long id) {
+        return orderService.getOrderStatus(id);
     }
 }

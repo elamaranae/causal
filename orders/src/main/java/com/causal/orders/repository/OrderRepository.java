@@ -1,5 +1,6 @@
 package com.causal.orders.repository;
 
+import com.causal.orders.dto.response.OrderStatusResponse;
 import com.causal.orders.model.Order;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,4 +14,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @EntityGraph(attributePaths = {"items", "shippingAddress", "billingAddress"})
     Optional<Order> findDetailById(Long id);
+
+    Optional<OrderStatusResponse> findStatusById(Long id);
 }

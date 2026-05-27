@@ -1,6 +1,7 @@
 package com.causal.orders.service;
 
 import com.causal.orders.dto.response.OrderShowResponse;
+import com.causal.orders.dto.response.OrderStatusResponse;
 import com.causal.orders.mapper.OrderMapper;
 import com.causal.orders.repository.OrderRepository;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,11 @@ public class OrderService {
     public OrderService(OrderRepository orderRepository, OrderMapper orderMapper) {
         this.orderRepository = orderRepository;
         this.orderMapper = orderMapper;
+    }
+
+    public OrderStatusResponse getOrderStatus(Long id) {
+        return orderRepository.findStatusById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
     }
 
     public OrderShowResponse getOrder(Long id) {
