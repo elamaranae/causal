@@ -60,7 +60,7 @@ jib {
         }
     }
     to {
-        image = "orders"
+        image = "order"
         tags = setOf("latest", project.version.toString())
     }
     container {
@@ -70,7 +70,7 @@ jib {
             "-XX:MaxRAMPercentage=75.0"
         )
         ports = listOf("8080")
-        mainClass = "com.causal.orders.OrdersApplication"
+        mainClass = "com.causal.order.OrderApplication"
         creationTime.set("USE_CURRENT_TIMESTAMP")
     }
 }
