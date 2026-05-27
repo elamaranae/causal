@@ -11,6 +11,7 @@ import com.causal.order.client.product.ProductGateway;
 import com.causal.order.client.product.dto.response.SkuShowResponse;
 import com.causal.order.client.profile.ProfileGateway;
 import com.causal.order.config.CurrentUser;
+import com.causal.order.dto.request.PaymentRequest;
 import com.causal.order.dto.response.OrderShowResponse;
 import com.causal.order.dto.response.OrderStatusResponse;
 import com.causal.order.mapper.OrderMapper;
@@ -147,5 +148,9 @@ public class OrderService {
         order.setTotalCurrency(currency);
         order.setStatus("RESERVED");
         orderRepository.save(order);
+    }
+
+    public void pay(Long id, PaymentRequest request) {
+        // TODO: process payment
     }
 }

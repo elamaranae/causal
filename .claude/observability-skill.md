@@ -23,8 +23,8 @@ forward traffic from the container IP to `host.docker.internal`.
 | causal-cart-db         | 172.20.0.31  | PostgreSQL            | 5432     | cartdb       |
 | causal-inventory-app   | 172.20.0.40  | Spring Boot (inventory)| 8080    | inventorydb  |
 | causal-inventory-db    | 172.20.0.41  | PostgreSQL            | 5432     | inventorydb  |
-| causal-orders-app      | 172.20.0.50  | Spring Boot (orders)  | 8080     | ordersdb     |
-| causal-orders-db       | 172.20.0.51  | PostgreSQL            | 5432     | ordersdb     |
+| causal-order-app       | 172.20.0.50  | Spring Boot (order)   | 8080     | orderdb     |
+| causal-order-db        | 172.20.0.51  | PostgreSQL            | 5432     | orderdb     |
 | causal-profile-app     | 172.20.0.60  | Spring Boot (profile) | 8080     | profiledb    |
 | causal-profile-db      | 172.20.0.61  | PostgreSQL            | 5432     | profiledb    |
 

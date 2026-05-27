@@ -1,12 +1,11 @@
 package com.causal.order.controller;
 
+import com.causal.order.dto.request.PaymentRequest;
 import com.causal.order.dto.response.OrderShowResponse;
 import com.causal.order.dto.response.OrderStatusResponse;
 import com.causal.order.service.OrderService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class OrderController {
@@ -30,5 +29,10 @@ public class OrderController {
     @PostMapping("orders/checkout")
     public OrderShowResponse checkout() {
         return orderService.checkout();
+    }
+
+    @PostMapping("orders/{id}/pay")
+    public void pay(@PathVariable Long id, @Valid @RequestBody PaymentRequest request) {
+        orderService.pay(id, request);
     }
 }

@@ -14,8 +14,8 @@ ENTRIES="
 172.20.0.31   causal-cart-db
 172.20.0.40   causal-inventory-app
 172.20.0.41   causal-inventory-db
-172.20.0.50   causal-orders-app
-172.20.0.51   causal-orders-db
+172.20.0.50   causal-order-app
+172.20.0.51   causal-order-db
 172.20.0.60   causal-profile-app
 172.20.0.61   causal-profile-db
 172.20.0.100  o11y-otel-collector
