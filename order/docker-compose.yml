@@ -10,6 +10,7 @@ services:
   causal-order-db:
     image: postgres:latest
     restart: always
+    command: ["postgres", "-c", "wal_level=logical"]
     environment:
       - POSTGRES_DB=orderdb
       - POSTGRES_USER=postgres
@@ -24,6 +25,36 @@ services:
     networks:
       causal-net:
         ipv4_address: 172.20.0.51
+  causal-order-rabbitmq:
+    image: rabbitmq:4-management
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - causal-order-rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.52
+  causal-order-debezium:
+    image: quay.io/debezium/server:latest
+    restart: always
+    depends_on:
+      causal-order-db:
+        condition: service_healthy
+      causal-order-rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./debezium/application.properties:/debezium/conf/application.properties
+      - causal-order-debezium-data:/debezium/data
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.53
 
 networks:
   causal-net:
@@ -32,3 +63,5 @@ networks:
 
 volumes:
   causal-order-db-data:
+  causal-order-rabbitmq-data:
+  causal-order-debezium-data:

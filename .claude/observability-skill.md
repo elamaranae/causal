@@ -25,6 +25,8 @@ forward traffic from the container IP to `host.docker.internal`.
 | causal-inventory-db    | 172.20.0.41  | PostgreSQL            | 5432     | inventorydb  |
 | causal-order-app       | 172.20.0.50  | Spring Boot (order)   | 8080     | orderdb     |
 | causal-order-db        | 172.20.0.51  | PostgreSQL            | 5432     | orderdb     |
+| causal-order-rabbitmq  | 172.20.0.52  | RabbitMQ              | 5672/15672 | —          |
+| causal-order-debezium  | 172.20.0.53  | Debezium Server (CDC) | —        | —           |
 | causal-profile-app     | 172.20.0.60  | Spring Boot (profile) | 8080     | profiledb    |
 | causal-profile-db      | 172.20.0.61  | PostgreSQL            | 5432     | profiledb    |
 
