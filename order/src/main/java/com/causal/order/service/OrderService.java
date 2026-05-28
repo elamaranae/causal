@@ -25,7 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -130,7 +130,7 @@ public class OrderService {
         orderRepository.save(order);
 
         OutboxEvent event = new OutboxEvent(
-                "order",
+                "job.initiate_payment",
                 order.getId().toString(),
                 "payment_initiated",
                 buildPaymentPayload(order, request)
@@ -208,6 +208,35 @@ public class OrderService {
             order.setStatus("RESERVATION_FAILED");
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Unable to reserve inventory: " + e.getMessage());
         }
+    }
+
+    @Transactional
+    public void handlePaymentWebhook(Long orderId, String status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        if (status.equals(order.getStatus())) {
+            return;
+        }
+
+        if (!"PAYMENT_INITIATED".equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order is not in PAYMENT_INITIATED status");
+        }
+
+        order.setStatus(status);
+        orderRepository.save(order);
+
+        OutboxEvent event = new OutboxEvent(
+                "job.finalise_payment",
+                order.getId().toString(),
+                "payment_" + status.toLowerCase(),
+                Map.of(
+                        "orderId", order.getId(),
+                        "userId", order.getUserId(),
+                        "status", status
+                )
+        );
+        outboxRepository.save(event);
     }
 
     private List<StockReservationItemRequest> toReservationItems(Order order) {

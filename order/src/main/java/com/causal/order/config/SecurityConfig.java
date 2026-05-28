@@ -16,10 +16,11 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain chain(HttpSecurity http) throws Exception {
       http
+          .csrf(csrf -> csrf.disable())
           .sessionManagement(session -> session
               .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
           .authorizeHttpRequests(a -> a
-              .requestMatchers("/actuator/**").permitAll()
+              .requestMatchers("/actuator/**", "/orders/payment/webhook").permitAll()
               .anyRequest().authenticated())
           .oauth2ResourceServer(o -> o
               .bearerTokenResolver(cookieBearerTokenResolver())

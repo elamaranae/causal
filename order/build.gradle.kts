@@ -34,6 +34,7 @@ dependencies {
   developmentOnly("org.springframework.boot:spring-boot-devtools")
 
 
+	implementation("org.springframework.boot:spring-boot-starter-json")
 	implementation("org.springframework.boot:spring-boot-starter-amqp")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.boot:spring-boot-starter-restclient")
