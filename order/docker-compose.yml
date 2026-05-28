@@ -50,7 +50,7 @@ services:
       causal-order-rabbitmq:
         condition: service_healthy
     volumes:
-      - ./debezium/application.properties:/debezium/conf/application.properties
+      - ./debezium/application.properties:/debezium/config/application.properties
       - causal-order-debezium-data:/debezium/data
     networks:
       causal-net:

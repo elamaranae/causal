@@ -11,17 +11,21 @@ import com.causal.order.client.product.ProductGateway;
 import com.causal.order.client.product.dto.response.SkuShowResponse;
 import com.causal.order.client.profile.ProfileGateway;
 import com.causal.order.config.CurrentUser;
+import com.causal.order.dto.request.PaymentMethodRequest;
 import com.causal.order.dto.request.PaymentRequest;
 import com.causal.order.dto.response.OrderShowResponse;
 import com.causal.order.dto.response.OrderStatusResponse;
 import com.causal.order.mapper.OrderMapper;
 import com.causal.order.model.Order;
 import com.causal.order.model.OrderItem;
+import com.causal.order.model.OutboxEvent;
 import com.causal.order.repository.OrderRepository;
+import com.causal.order.repository.OutboxRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -33,27 +37,36 @@ import java.util.stream.Collectors;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OutboxRepository outboxRepository;
     private final OrderMapper orderMapper;
     private final CurrentUser currentUser;
     private final CartGateway cartGateway;
     private final ProfileGateway profileGateway;
     private final ProductGateway productGateway;
     private final InventoryGateway inventoryGateway;
+    private final PaymentEncryptor paymentEncryptor;
+    private final ObjectMapper objectMapper;
 
     public OrderService(OrderRepository orderRepository,
+                        OutboxRepository outboxRepository,
                         OrderMapper orderMapper,
                         CurrentUser currentUser,
                         CartGateway cartGateway,
                         ProfileGateway profileGateway,
                         ProductGateway productGateway,
-                        InventoryGateway inventoryGateway) {
+                        InventoryGateway inventoryGateway,
+                        PaymentEncryptor paymentEncryptor,
+                        ObjectMapper objectMapper) {
         this.orderRepository = orderRepository;
+        this.outboxRepository = outboxRepository;
         this.orderMapper = orderMapper;
         this.currentUser = currentUser;
         this.cartGateway = cartGateway;
         this.profileGateway = profileGateway;
         this.productGateway = productGateway;
         this.inventoryGateway = inventoryGateway;
+        this.paymentEncryptor = paymentEncryptor;
+        this.objectMapper = objectMapper;
     }
 
     public OrderStatusResponse getOrderStatus(Long id) {
@@ -89,6 +102,7 @@ public class OrderService {
         return orderMapper.from(order);
     }
 
+    @Transactional
     public void pay(Long id, PaymentRequest request) {
         Order order = orderRepository.findDetailById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
@@ -111,10 +125,32 @@ public class OrderService {
         order.setShippingAddress(orderMapper.from(request.shippingAddress()));
         order.setBillingAddress(orderMapper.from(request.billingAddress()));
 
-        // TODO: process payment with payment provider
-
+        // Atomically update order status and publish payment event
         order.setStatus("PAYMENT_INITIATED");
         orderRepository.save(order);
+
+        OutboxEvent event = new OutboxEvent(
+                "order",
+                order.getId().toString(),
+                "payment_initiated",
+                buildPaymentPayload(order, request)
+        );
+        outboxRepository.save(event);
+    }
+
+    private Map<String, Object> buildPaymentPayload(Order order, PaymentRequest request) {
+        try {
+            String sensitiveJson = objectMapper.writeValueAsString(request.paymentMethod());
+            return Map.of(
+                    "orderId", order.getId(),
+                    "userId", order.getUserId(),
+                    "totalAmount", order.getTotalAmount(),
+                    "totalCurrency", order.getTotalCurrency(),
+                    "encryptedPaymentMethod", paymentEncryptor.encrypt(sensitiveJson)
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize payment method", e);
+        }
     }
 
     private CartShowResponse fetchCart() {
