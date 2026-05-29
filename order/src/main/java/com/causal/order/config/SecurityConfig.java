@@ -20,7 +20,7 @@ public class SecurityConfig {
           .sessionManagement(session -> session
               .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
           .authorizeHttpRequests(a -> a
-              .requestMatchers("/actuator/**", "/orders/payment/webhook").permitAll()
+              .requestMatchers("/actuator/**", "/orders/payment/webhook", "/orders/complete/webhook").permitAll()
               .anyRequest().authenticated())
           .oauth2ResourceServer(o -> o
               .bearerTokenResolver(cookieBearerTokenResolver())

@@ -6,12 +6,15 @@ services:
         condition: service_healthy
       causal-kafka:
         condition: service_healthy
+      causal-inventory-rabbitmq:
+        condition: service_healthy
     networks:
       causal-net:
         ipv4_address: 172.20.0.40
   causal-inventory-db:
     image: postgres:latest
     restart: always
+    command: ["postgres", "-c", "wal_level=logical"]
     environment:
       - POSTGRES_DB=inventorydb
       - POSTGRES_USER=postgres
@@ -26,6 +29,36 @@ services:
     networks:
       causal-net:
         ipv4_address: 172.20.0.41
+  causal-inventory-rabbitmq:
+    image: rabbitmq:4-management
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - causal-inventory-rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.42
+  causal-inventory-debezium:
+    image: quay.io/debezium/server:latest
+    restart: always
+    depends_on:
+      causal-inventory-db:
+        condition: service_healthy
+      causal-inventory-rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./debezium/application.properties:/debezium/config/application.properties
+      - causal-inventory-debezium-data:/debezium/data
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.43
 
 networks:
   causal-net:
@@ -34,3 +67,5 @@ networks:
 
 volumes:
   causal-inventory-db-data:
+  causal-inventory-rabbitmq-data:
+  causal-inventory-debezium-data:

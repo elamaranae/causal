@@ -19,8 +19,10 @@ public class RabbitMQConfig {
 
     public static final String EVENTS_QUEUE = "order.events";
     public static final String JOB_INITIATE_PAYMENT_QUEUE = "order.job.initiate_payment";
+    public static final String JOB_REFUND_QUEUE = "order.job.refund";
     private static final String EVENTS_DLQ = "order.events.dlq";
     private static final String JOB_INITIATE_PAYMENT_DLQ = "order.job.initiate_payment.dlq";
+    private static final String JOB_REFUND_DLQ = "order.job.refund.dlq";
 
     @Bean
     TopicExchange outboxExchange() {
@@ -50,6 +52,14 @@ public class RabbitMQConfig {
                 .build();
     }
 
+    @Bean
+    Queue jobRefundQueue() {
+        return QueueBuilder.durable(JOB_REFUND_QUEUE)
+                .deadLetterExchange(DLX_EXCHANGE)
+                .deadLetterRoutingKey(JOB_REFUND_DLQ)
+                .build();
+    }
+
     // -- dead letter queues --
 
     @Bean
@@ -60,6 +70,11 @@ public class RabbitMQConfig {
     @Bean
     Queue jobInitiatePaymentDlq() {
         return new Queue(JOB_INITIATE_PAYMENT_DLQ, true);
+    }
+
+    @Bean
+    Queue jobRefundDlq() {
+        return new Queue(JOB_REFUND_DLQ, true);
     }
 
     // -- bindings --
@@ -74,6 +89,11 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(jobInitiatePaymentQueue).to(outboxExchange).with("job.initiate_payment");
     }
 
+    @Bean
+    Binding jobRefundBinding(Queue jobRefundQueue, TopicExchange outboxExchange) {
+        return BindingBuilder.bind(jobRefundQueue).to(outboxExchange).with("job.refund");
+    }
+
     // -- dead letter bindings --
 
     @Bean
@@ -84,6 +104,11 @@ public class RabbitMQConfig {
     @Bean
     Binding jobInitiatePaymentDlqBinding(Queue jobInitiatePaymentDlq, DirectExchange dlxExchange) {
         return BindingBuilder.bind(jobInitiatePaymentDlq).to(dlxExchange).with(JOB_INITIATE_PAYMENT_DLQ);
+    }
+
+    @Bean
+    Binding jobRefundDlqBinding(Queue jobRefundDlq, DirectExchange dlxExchange) {
+        return BindingBuilder.bind(jobRefundDlq).to(dlxExchange).with(JOB_REFUND_DLQ);
     }
 
     @Bean

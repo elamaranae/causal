@@ -248,6 +248,41 @@ public class OrderService {
         outboxRepository.save(event);
     }
 
+    @Transactional
+    public void handleOrderCompleteWebhook(Long orderId, String status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        // Idempotent — already in this status
+        if (status.equals(order.getStatus())) {
+            return;
+        }
+
+        // Only transition from PAYMENT_SUCCESS
+        if (!"PAYMENT_SUCCESS".equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Order is not in PAYMENT_SUCCESS status, current: " + order.getStatus());
+        }
+
+        order.setStatus(status);
+        orderRepository.save(order);
+
+        if ("FAILED".equals(status)) {
+            OutboxEvent event = new OutboxEvent(
+                    "job.refund",
+                    order.getId().toString(),
+                    "refund_initiated",
+                    Map.of(
+                            "orderId", order.getId(),
+                            "userId", order.getUserId(),
+                            "totalAmount", order.getTotalAmount(),
+                            "totalCurrency", order.getTotalCurrency()
+                    )
+            );
+            outboxRepository.save(event);
+        }
+    }
+
     private List<StockReservationItemRequest> toReservationItems(Order order) {
         return order.getItems().stream()
                 .map(item -> new StockReservationItemRequest(item.getSkuId(), item.getQuantity()))

@@ -1,5 +1,6 @@
 package com.causal.order.controller;
 
+import com.causal.order.dto.request.OrderCompleteWebhookRequest;
 import com.causal.order.dto.request.PaymentRequest;
 import com.causal.order.dto.request.PaymentWebhookRequest;
 import com.causal.order.dto.response.OrderShowResponse;
@@ -40,5 +41,10 @@ public class OrderController {
     @PostMapping("orders/payment/webhook")
     public void paymentWebhook(@Valid @RequestBody PaymentWebhookRequest request) {
         orderService.handlePaymentWebhook(request.orderId(), request.status());
+    }
+
+    @PostMapping("orders/complete/webhook")
+    public void completeWebhook(@Valid @RequestBody OrderCompleteWebhookRequest request) {
+        orderService.handleOrderCompleteWebhook(request.orderId(), request.status());
     }
 }
