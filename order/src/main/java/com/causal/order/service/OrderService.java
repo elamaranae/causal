@@ -226,14 +226,23 @@ public class OrderService {
         order.setStatus(status);
         orderRepository.save(order);
 
+        List<Map<String, Object>> items = order.getItems().stream()
+                .map(item -> Map.<String, Object>of(
+                        "skuId", item.getSkuId(),
+                        "quantity", item.getQuantity()))
+                .toList();
+
         OutboxEvent event = new OutboxEvent(
-                "job.finalise_payment",
+                "event.payment_completed",
                 order.getId().toString(),
-                "payment_" + status.toLowerCase(),
+                "payment_completed",
                 Map.of(
                         "orderId", order.getId(),
                         "userId", order.getUserId(),
-                        "status", status
+                        "status", status,
+                        "totalAmount", order.getTotalAmount(),
+                        "totalCurrency", order.getTotalCurrency(),
+                        "items", items
                 )
         );
         outboxRepository.save(event);
