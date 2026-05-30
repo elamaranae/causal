@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { apiFetch, urls } from '$lib/api';
-  import type { Order } from '$lib/types';
+  import type { Order, Address, Profile } from '$lib/types';
   import Button from '$lib/components/Button.svelte';
   import Input from '$lib/components/Input.svelte';
 
@@ -12,6 +12,16 @@
   type Step = 'address' | 'payment';
   let step = $state<Step>('address');
 
+  // Saved addresses
+  let savedAddresses = $state<Address[]>([]);
+  let addressesLoading = $state(true);
+  let defaultAddressId = $state<number | null>(null);
+
+  // Shipping address selection
+  type ShipMode = 'saved' | 'new';
+  let shipMode = $state<ShipMode>('saved');
+  let selectedShipId = $state<number | null>(null);
+  let shipLabel = $state('');
   let shipLine1 = $state('');
   let shipLine2 = $state('');
   let shipCity = $state('');
@@ -19,8 +29,14 @@
   let shipCountry = $state('');
   let shipPincode = $state('');
   let shipPhone = $state('');
+  let saveNewShipAddress = $state(false);
 
+  // Billing
   let sameAsShipping = $state(true);
+  type BillMode = 'saved' | 'new';
+  let billMode = $state<BillMode>('saved');
+  let selectedBillId = $state<number | null>(null);
+  let billLabel = $state('');
   let billLine1 = $state('');
   let billLine2 = $state('');
   let billCity = $state('');
@@ -28,7 +44,9 @@
   let billCountry = $state('');
   let billPincode = $state('');
   let billPhone = $state('');
+  let saveNewBillAddress = $state(false);
 
+  // Payment
   let cardholderName = $state('');
   let cardNumber = $state('');
   let expiryMonth = $state('');
@@ -37,22 +55,64 @@
 
   let placing = $state(false);
   let error = $state<string | null>(null);
+  let addressError = $state<string | null>(null);
 
   // Polling state
   let polling = $state(false);
   let orderStatus = $state<string | null>(null);
   let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-  function continueToPayment(e: Event) {
-    e.preventDefault();
-    step = 'payment';
-  }
+  // Derived: selected shipping address object
+  let selectedShipAddress = $derived(
+    savedAddresses.find(a => a.id === selectedShipId) ?? null
+  );
+  let selectedBillAddress = $derived(
+    savedAddresses.find(a => a.id === selectedBillId) ?? null
+  );
 
-  function backToAddress() {
-    step = 'address';
-  }
+  onMount(async () => {
+    try {
+      const [addrRes, profileRes] = await Promise.all([
+        apiFetch(urls.profile.addresses),
+        apiFetch(urls.profile.me)
+      ]);
+      if (addrRes.ok) {
+        savedAddresses = await addrRes.json();
+      }
+      if (profileRes.ok) {
+        const profile: Profile = await profileRes.json();
+        defaultAddressId = profile.defaultAddressId;
+      }
 
-  function buildAddress(line1: string, line2: string, city: string, state: string, country: string, pincode: string, phone: string) {
+      // Pre-select default address, or first saved
+      if (savedAddresses.length > 0) {
+        const defaultAddr = savedAddresses.find(a => a.id === defaultAddressId);
+        selectedShipId = defaultAddr ? defaultAddr.id : savedAddresses[0].id;
+        selectedBillId = selectedShipId;
+        shipMode = 'saved';
+        billMode = 'saved';
+      } else {
+        shipMode = 'new';
+        billMode = 'new';
+      }
+    } finally {
+      addressesLoading = false;
+    }
+  });
+
+  function getAddressPayload(mode: 'saved' | 'new', selectedAddr: Address | null, line1: string, line2: string, city: string, state: string, country: string, pincode: string, phone: string) {
+    if (mode === 'saved' && selectedAddr) {
+      return {
+        label: selectedAddr.label,
+        line1: selectedAddr.line1,
+        line2: selectedAddr.line2,
+        city: selectedAddr.city,
+        state: selectedAddr.state,
+        country: selectedAddr.country,
+        pincode: selectedAddr.pincode,
+        phoneNumber: selectedAddr.phoneNumber
+      };
+    }
     return {
       label: null,
       line1,
@@ -63,6 +123,72 @@
       pincode,
       phoneNumber: phone || null
     };
+  }
+
+  // Resolved addresses for summary display
+  let resolvedShipping = $derived.by(() => {
+    if (shipMode === 'saved' && selectedShipAddress) {
+      return { line1: selectedShipAddress.line1, line2: selectedShipAddress.line2, city: selectedShipAddress.city, state: selectedShipAddress.state, country: selectedShipAddress.country, pincode: selectedShipAddress.pincode };
+    }
+    return { line1: shipLine1, line2: shipLine2 || null, city: shipCity, state: shipState, country: shipCountry, pincode: shipPincode };
+  });
+  let resolvedBilling = $derived.by(() => {
+    if (sameAsShipping) return resolvedShipping;
+    if (billMode === 'saved' && selectedBillAddress) {
+      return { line1: selectedBillAddress.line1, line2: selectedBillAddress.line2, city: selectedBillAddress.city, state: selectedBillAddress.state, country: selectedBillAddress.country, pincode: selectedBillAddress.pincode };
+    }
+    return { line1: billLine1, line2: billLine2 || null, city: billCity, state: billState, country: billCountry, pincode: billPincode };
+  });
+
+  async function saveAddressToProfile(label: string, line1: string, line2: string, city: string, state: string, country: string, pincode: string, phone: string): Promise<Address | null> {
+    const res = await apiFetch(urls.profile.addresses, {
+      method: 'POST',
+      body: JSON.stringify({
+        label: label || null,
+        line1,
+        line2: line2 || null,
+        city,
+        state,
+        country,
+        pincode,
+        phoneNumber: phone || null
+      })
+    });
+    if (res.ok) {
+      const addr: Address = await res.json();
+      savedAddresses = [...savedAddresses, addr];
+      return addr;
+    }
+    return null;
+  }
+
+  async function continueToPayment(e: Event) {
+    e.preventDefault();
+    addressError = null;
+
+    // Save new shipping address if requested
+    if (shipMode === 'new' && saveNewShipAddress) {
+      const addr = await saveAddressToProfile(shipLabel, shipLine1, shipLine2, shipCity, shipState, shipCountry, shipPincode, shipPhone);
+      if (!addr) {
+        addressError = 'Failed to save shipping address';
+        return;
+      }
+    }
+
+    // Save new billing address if requested
+    if (!sameAsShipping && billMode === 'new' && saveNewBillAddress) {
+      const addr = await saveAddressToProfile(billLabel, billLine1, billLine2, billCity, billState, billCountry, billPincode, billPhone);
+      if (!addr) {
+        addressError = 'Failed to save billing address';
+        return;
+      }
+    }
+
+    step = 'payment';
+  }
+
+  function backToAddress() {
+    step = 'address';
   }
 
   function startPolling() {
@@ -97,10 +223,10 @@
     placing = true;
     error = null;
     try {
-      const shipping = buildAddress(shipLine1, shipLine2, shipCity, shipState, shipCountry, shipPincode, shipPhone);
+      const shipping = getAddressPayload(shipMode, selectedShipAddress, shipLine1, shipLine2, shipCity, shipState, shipCountry, shipPincode, shipPhone);
       const billing = sameAsShipping
         ? shipping
-        : buildAddress(billLine1, billLine2, billCity, billState, billCountry, billPincode, billPhone);
+        : getAddressPayload(billMode, selectedBillAddress, billLine1, billLine2, billCity, billState, billCountry, billPincode, billPhone);
 
       const res = await apiFetch(urls.orders.pay(order.id), {
         method: 'POST',
@@ -160,10 +286,9 @@
     align-items: flex-start;
     justify-content: space-between;
     padding: 0.75rem 0;
-    border-bottom: 1px solid #e2e8f0;
   }
-  .order-item:last-child {
-    border-bottom: none;
+  .order-item + .order-item {
+    border-top: 1px solid #e2e8f0;
   }
   .order-total {
     display: flex;
@@ -389,6 +514,73 @@
     color: #0f172a;
     white-space: nowrap;
   }
+  .addr-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    background: white;
+    text-align: left;
+  }
+  .addr-card:hover {
+    border-color: #94a3b8;
+  }
+  .addr-card.selected {
+    border-color: #0f172a;
+    background: #f8fafc;
+  }
+  .addr-card-label {
+    font-size: 0.688rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+  }
+  .addr-card-text {
+    font-size: 0.813rem;
+    color: #334155;
+    line-height: 1.4;
+    margin-top: 0.25rem;
+  }
+  .addr-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .mode-toggle {
+    font-size: 0.813rem;
+    color: #64748b;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    text-decoration: underline;
+  }
+  .mode-toggle:hover {
+    color: #0f172a;
+  }
+  .save-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.813rem;
+    color: #64748b;
+    cursor: pointer;
+    margin-top: 0.5rem;
+  }
+  .default-badge {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #0f172a;
+    color: white;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    margin-left: 0.5rem;
+  }
 </style>
 
 {#if polling}
@@ -466,17 +658,17 @@
             <p class="addr-label">Shipping address</p>
             <button class="edit-link" onclick={backToAddress}>Edit</button>
           </div>
-          <p class="addr-text">{shipLine1}{shipLine2 ? `, ${shipLine2}` : ''}</p>
-          <p class="addr-text">{shipCity}, {shipState} {shipPincode}</p>
-          <p class="addr-text">{shipCountry}</p>
+          <p class="addr-text">{resolvedShipping.line1}{resolvedShipping.line2 ? `, ${resolvedShipping.line2}` : ''}</p>
+          <p class="addr-text">{resolvedShipping.city}, {resolvedShipping.state} {resolvedShipping.pincode}</p>
+          <p class="addr-text">{resolvedShipping.country}</p>
         </div>
 
         {#if !sameAsShipping}
           <div class="addr-summary">
             <p class="addr-label">Billing address</p>
-            <p class="addr-text">{billLine1}{billLine2 ? `, ${billLine2}` : ''}</p>
-            <p class="addr-text">{billCity}, {billState} {billPincode}</p>
-            <p class="addr-text">{billCountry}</p>
+            <p class="addr-text">{resolvedBilling.line1}{resolvedBilling.line2 ? `, ${resolvedBilling.line2}` : ''}</p>
+            <p class="addr-text">{resolvedBilling.city}, {resolvedBilling.state} {resolvedBilling.pincode}</p>
+            <p class="addr-text">{resolvedBilling.country}</p>
           </div>
         {/if}
       {/if}
@@ -505,51 +697,179 @@
       </div>
 
       {#if step === 'address'}
-        <form onsubmit={continueToPayment}>
-          <div class="section">
-            <p class="section-title">Shipping address</p>
-            <div class="fields">
-              <Input id="shipLine1" label="Address line 1" bind:value={shipLine1} required />
-              <Input id="shipLine2" label="Address line 2" bind:value={shipLine2} />
-              <div class="field-row">
-                <Input id="shipCity" label="City" bind:value={shipCity} required />
-                <Input id="shipState" label="State" bind:value={shipState} required />
-              </div>
-              <div class="field-row">
-                <Input id="shipCountry" label="Country" bind:value={shipCountry} required />
-                <Input id="shipPincode" label="Pincode" bind:value={shipPincode} required />
-              </div>
-              <Input id="shipPhone" label="Phone number" bind:value={shipPhone} type="tel" />
-            </div>
-          </div>
+        {#if addressesLoading}
+          <p style="font-size:0.875rem;color:#64748b;">Loading addresses...</p>
+        {:else}
+          <form onsubmit={continueToPayment}>
+            <div class="section">
+              <p class="section-title">Shipping address</p>
 
-          <div class="section">
-            <div class="billing-header">
-              <p class="section-title" style="margin-bottom:0;">Billing address</p>
-              <label class="same-check">
-                <input type="checkbox" bind:checked={sameAsShipping} />
-                Same as shipping
-              </label>
+              {#if savedAddresses.length > 0}
+                {#if shipMode === 'saved'}
+                  <div class="addr-cards">
+                    {#each savedAddresses as addr (addr.id)}
+                      <button
+                        type="button"
+                        class="addr-card {selectedShipId === addr.id ? 'selected' : ''}"
+                        onclick={() => { selectedShipId = addr.id; }}
+                      >
+                        <div style="display:flex;align-items:center;">
+                          {#if addr.label}
+                            <span class="addr-card-label">{addr.label}</span>
+                          {/if}
+                          {#if addr.id === defaultAddressId}
+                            <span class="default-badge">Default</span>
+                          {/if}
+                        </div>
+                        <p class="addr-card-text">
+                          {addr.line1}{addr.line2 ? `, ${addr.line2}` : ''}<br>
+                          {addr.city}, {addr.state} {addr.pincode}<br>
+                          {addr.country}
+                          {#if addr.phoneNumber}<br>{addr.phoneNumber}{/if}
+                        </p>
+                      </button>
+                    {/each}
+                  </div>
+                  <button type="button" class="mode-toggle" onclick={() => { shipMode = 'new'; }}>
+                    + Use a new address
+                  </button>
+                {:else}
+                  <button type="button" class="mode-toggle" style="margin-bottom:0.75rem;" onclick={() => { shipMode = 'saved'; }}>
+                    ← Use a saved address
+                  </button>
+                  <div class="fields">
+                    <Input id="shipLabel" label="Label (e.g., Home, Work)" bind:value={shipLabel} />
+                    <Input id="shipLine1" label="Address line 1" bind:value={shipLine1} required />
+                    <Input id="shipLine2" label="Address line 2" bind:value={shipLine2} />
+                    <div class="field-row">
+                      <Input id="shipCity" label="City" bind:value={shipCity} required />
+                      <Input id="shipState" label="State" bind:value={shipState} required />
+                    </div>
+                    <div class="field-row">
+                      <Input id="shipCountry" label="Country" bind:value={shipCountry} required />
+                      <Input id="shipPincode" label="Pincode" bind:value={shipPincode} required />
+                    </div>
+                    <Input id="shipPhone" label="Phone number" bind:value={shipPhone} type="tel" />
+                    <label class="save-check">
+                      <input type="checkbox" bind:checked={saveNewShipAddress} />
+                      Save this address to my profile
+                    </label>
+                  </div>
+                {/if}
+              {:else}
+                <div class="fields">
+                  <Input id="shipLabel" label="Label (e.g., Home, Work)" bind:value={shipLabel} />
+                  <Input id="shipLine1" label="Address line 1" bind:value={shipLine1} required />
+                  <Input id="shipLine2" label="Address line 2" bind:value={shipLine2} />
+                  <div class="field-row">
+                    <Input id="shipCity" label="City" bind:value={shipCity} required />
+                    <Input id="shipState" label="State" bind:value={shipState} required />
+                  </div>
+                  <div class="field-row">
+                    <Input id="shipCountry" label="Country" bind:value={shipCountry} required />
+                    <Input id="shipPincode" label="Pincode" bind:value={shipPincode} required />
+                  </div>
+                  <Input id="shipPhone" label="Phone number" bind:value={shipPhone} type="tel" />
+                  <label class="save-check">
+                    <input type="checkbox" bind:checked={saveNewShipAddress} />
+                    Save this address to my profile
+                  </label>
+                </div>
+              {/if}
             </div>
-            {#if !sameAsShipping}
-              <div class="fields">
-                <Input id="billLine1" label="Address line 1" bind:value={billLine1} required />
-                <Input id="billLine2" label="Address line 2" bind:value={billLine2} />
-                <div class="field-row">
-                  <Input id="billCity" label="City" bind:value={billCity} required />
-                  <Input id="billState" label="State" bind:value={billState} required />
-                </div>
-                <div class="field-row">
-                  <Input id="billCountry" label="Country" bind:value={billCountry} required />
-                  <Input id="billPincode" label="Pincode" bind:value={billPincode} required />
-                </div>
-                <Input id="billPhone" label="Phone number" bind:value={billPhone} type="tel" />
+
+            <div class="section">
+              <div class="billing-header">
+                <p class="section-title" style="margin-bottom:0;">Billing address</p>
+                <label class="same-check">
+                  <input type="checkbox" bind:checked={sameAsShipping} />
+                  Same as shipping
+                </label>
+              </div>
+              {#if !sameAsShipping}
+                {#if savedAddresses.length > 0}
+                  {#if billMode === 'saved'}
+                    <div class="addr-cards">
+                      {#each savedAddresses as addr (addr.id)}
+                        <button
+                          type="button"
+                          class="addr-card {selectedBillId === addr.id ? 'selected' : ''}"
+                          onclick={() => { selectedBillId = addr.id; }}
+                        >
+                          <div style="display:flex;align-items:center;">
+                            {#if addr.label}
+                              <span class="addr-card-label">{addr.label}</span>
+                            {/if}
+                            {#if addr.id === defaultAddressId}
+                              <span class="default-badge">Default</span>
+                            {/if}
+                          </div>
+                          <p class="addr-card-text">
+                            {addr.line1}{addr.line2 ? `, ${addr.line2}` : ''}<br>
+                            {addr.city}, {addr.state} {addr.pincode}<br>
+                            {addr.country}
+                          </p>
+                        </button>
+                      {/each}
+                    </div>
+                    <button type="button" class="mode-toggle" onclick={() => { billMode = 'new'; }}>
+                      + Use a new address
+                    </button>
+                  {:else}
+                    <button type="button" class="mode-toggle" style="margin-bottom:0.75rem;" onclick={() => { billMode = 'saved'; }}>
+                      ← Use a saved address
+                    </button>
+                    <div class="fields">
+                      <Input id="billLabel" label="Label (e.g., Home, Work)" bind:value={billLabel} />
+                      <Input id="billLine1" label="Address line 1" bind:value={billLine1} required />
+                      <Input id="billLine2" label="Address line 2" bind:value={billLine2} />
+                      <div class="field-row">
+                        <Input id="billCity" label="City" bind:value={billCity} required />
+                        <Input id="billState" label="State" bind:value={billState} required />
+                      </div>
+                      <div class="field-row">
+                        <Input id="billCountry" label="Country" bind:value={billCountry} required />
+                        <Input id="billPincode" label="Pincode" bind:value={billPincode} required />
+                      </div>
+                      <Input id="billPhone" label="Phone number" bind:value={billPhone} type="tel" />
+                      <label class="save-check">
+                        <input type="checkbox" bind:checked={saveNewBillAddress} />
+                        Save this address to my profile
+                      </label>
+                    </div>
+                  {/if}
+                {:else}
+                  <div class="fields">
+                    <Input id="billLabel" label="Label (e.g., Home, Work)" bind:value={billLabel} />
+                    <Input id="billLine1" label="Address line 1" bind:value={billLine1} required />
+                    <Input id="billLine2" label="Address line 2" bind:value={billLine2} />
+                    <div class="field-row">
+                      <Input id="billCity" label="City" bind:value={billCity} required />
+                      <Input id="billState" label="State" bind:value={billState} required />
+                    </div>
+                    <div class="field-row">
+                      <Input id="billCountry" label="Country" bind:value={billCountry} required />
+                      <Input id="billPincode" label="Pincode" bind:value={billPincode} required />
+                    </div>
+                    <Input id="billPhone" label="Phone number" bind:value={billPhone} type="tel" />
+                    <label class="save-check">
+                      <input type="checkbox" bind:checked={saveNewBillAddress} />
+                      Save this address to my profile
+                    </label>
+                  </div>
+                {/if}
+              {/if}
+            </div>
+
+            {#if addressError}
+              <div class="error-box">
+                <p class="error-text">{addressError}</p>
               </div>
             {/if}
-          </div>
 
-          <Button type="submit" class="w-full">Continue to payment</Button>
-        </form>
+            <Button type="submit" class="w-full">Continue to payment</Button>
+          </form>
+        {/if}
       {/if}
 
       {#if step === 'payment'}

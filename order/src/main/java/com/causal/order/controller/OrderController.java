@@ -3,6 +3,7 @@ package com.causal.order.controller;
 import com.causal.order.dto.request.OrderCompleteWebhookRequest;
 import com.causal.order.dto.request.PaymentRequest;
 import com.causal.order.dto.request.PaymentWebhookRequest;
+import com.causal.order.dto.response.OrderListResponse;
 import com.causal.order.dto.response.OrderShowResponse;
 import com.causal.order.dto.response.OrderStatusResponse;
 import com.causal.order.service.OrderService;
@@ -16,6 +17,13 @@ public class OrderController {
 
     public OrderController(OrderService orderService) {
         this.orderService = orderService;
+    }
+
+    @GetMapping("orders")
+    public OrderListResponse getOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return orderService.getOrders(page, size);
     }
 
     @GetMapping("orders/{id}")

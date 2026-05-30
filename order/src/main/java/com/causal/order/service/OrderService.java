@@ -13,6 +13,7 @@ import com.causal.order.client.profile.ProfileGateway;
 import com.causal.order.config.CurrentUser;
 import com.causal.order.dto.request.PaymentMethodRequest;
 import com.causal.order.dto.request.PaymentRequest;
+import com.causal.order.dto.response.OrderListResponse;
 import com.causal.order.dto.response.OrderShowResponse;
 import com.causal.order.dto.response.OrderStatusResponse;
 import com.causal.order.mapper.OrderMapper;
@@ -21,6 +22,9 @@ import com.causal.order.model.OrderItem;
 import com.causal.order.model.OutboxEvent;
 import com.causal.order.repository.OrderRepository;
 import com.causal.order.repository.OutboxRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +71,17 @@ public class OrderService {
         this.inventoryGateway = inventoryGateway;
         this.paymentEncryptor = paymentEncryptor;
         this.objectMapper = objectMapper;
+    }
+
+    public OrderListResponse getOrders(int page, int size) {
+        Long userId = currentUser.id();
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Order> orderPage = orderRepository.findByUserId(userId, pageRequest);
+        List<OrderShowResponse> orders = orderPage.getContent().stream()
+                .map(orderMapper::from)
+                .toList();
+        return new OrderListResponse(orders, orderPage.getNumber(), orderPage.getSize(),
+                orderPage.getTotalElements(), orderPage.getTotalPages());
     }
 
     public OrderStatusResponse getOrderStatus(Long id) {

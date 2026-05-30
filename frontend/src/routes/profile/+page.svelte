@@ -4,17 +4,17 @@
   import { page } from '$app/stores';
   import { auth } from '$lib/auth.svelte';
   import { apiFetch, urls } from '$lib/api';
-  import type { Profile, Address } from '$lib/types';
+  import type { Profile, Address, Order, OrderListResponse } from '$lib/types';
   import Button from '$lib/components/Button.svelte';
   import Input from '$lib/components/Input.svelte';
 
-  type Section = 'profile' | 'addresses';
+  type Section = 'profile' | 'addresses' | 'orders';
   let activeSection = $derived<Section>(
-    $page.url.searchParams.get('section') === 'addresses' ? 'addresses' : 'profile'
+    (['addresses', 'orders'] as const).find(s => $page.url.searchParams.get('section') === s) ?? 'profile'
   );
 
   function setSection(section: Section) {
-    goto(section === 'profile' ? '/profile' : '/profile?section=addresses');
+    goto(section === 'profile' ? '/profile' : `/profile?section=${section}`);
   }
 
   // Profile state
@@ -32,6 +32,12 @@
   // Address state
   let addresses = $state<Address[]>([]);
   let addressesLoading = $state(true);
+
+  // Orders state
+  let orders = $state<Order[]>([]);
+  let ordersLoading = $state(true);
+  let ordersPage = $state(0);
+  let ordersTotalPages = $state(0);
 
   // Address form state
   let editingAddress = $state<Address | null>(null);
@@ -55,6 +61,7 @@
     }
     loadProfile();
     loadAddresses();
+    loadOrders();
   });
 
   async function loadProfile() {
@@ -211,6 +218,31 @@
     }
   }
 
+  async function loadOrders(page = 0) {
+    ordersLoading = true;
+    try {
+      const res = await apiFetch(urls.orders.list(page));
+      if (res.ok) {
+        const data: OrderListResponse = await res.json();
+        orders = data.orders;
+        ordersPage = data.page;
+        ordersTotalPages = data.totalPages;
+      }
+    } finally {
+      ordersLoading = false;
+    }
+  }
+
+  function statusColor(status: string): string {
+    switch (status.toUpperCase()) {
+      case 'COMPLETED': return 'bg-green-100 text-green-800';
+      case 'PAID': return 'bg-blue-100 text-blue-800';
+      case 'CANCELLED': return 'bg-red-100 text-red-800';
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-slate-100 text-slate-700';
+    }
+  }
+
   async function deleteAddress(id: number) {
     const res = await apiFetch(urls.profile.address(id), { method: 'DELETE' });
     if (res.ok) {
@@ -245,6 +277,12 @@
       >
         Addresses
       </button>
+      <button
+        class="text-left text-sm py-1.5 px-2 rounded transition-colors cursor-pointer {activeSection === 'orders' ? 'bg-slate-200/70 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}"
+        onclick={() => setSection('orders')}
+      >
+        Orders
+      </button>
     </nav>
   </aside>
 
@@ -262,6 +300,12 @@
         onclick={() => setSection('addresses')}
       >
         Addresses
+      </button>
+      <button
+        class="flex-1 text-xs font-medium py-1.5 px-3 rounded-full transition-colors cursor-pointer {activeSection === 'orders' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}"
+        onclick={() => setSection('orders')}
+      >
+        Orders
       </button>
     </div>
   </div>
@@ -432,6 +476,75 @@
             </div>
           {/each}
         </div>
+      {/if}
+    {/if}
+
+    <!-- Orders Section -->
+    {#if activeSection === 'orders'}
+      <h1 class="text-2xl font-bold tracking-tight text-slate-900 mb-6">Orders</h1>
+
+      {#if ordersLoading}
+        <p class="text-sm text-slate-500">Loading...</p>
+      {:else if orders.length === 0}
+        <p class="text-sm text-slate-500">No orders yet.</p>
+      {:else}
+        <div class="space-y-4">
+          {#each orders as order (order.id)}
+            <div class="bg-white border border-slate-200 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <span class="text-sm font-medium text-slate-900">Order #{order.id}</span>
+                  <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full {statusColor(order.status)}">
+                    {order.status}
+                  </span>
+                </div>
+                <span class="text-sm font-medium text-slate-900">
+                  {order.total.priceCurrency} {order.total.priceAmount.toFixed(2)}
+                </span>
+              </div>
+
+              <div class="space-y-2">
+                {#each order.items as item (item.id)}
+                  <div class="flex items-center justify-between text-sm border-t border-slate-100 pt-2">
+                    <div>
+                      <span class="text-slate-700">{item.skuName}</span>
+                      <span class="text-slate-400 ml-2">× {item.quantity}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full {statusColor(item.deliveryStatus)}">
+                        {item.deliveryStatus}
+                      </span>
+                      <span class="text-slate-600">{item.price.priceCurrency} {item.price.priceAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        <!-- Pagination -->
+        {#if ordersTotalPages > 1}
+          <div class="flex items-center justify-center gap-3 mt-6">
+            <button
+              class="text-sm text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              disabled={ordersPage === 0}
+              onclick={() => loadOrders(ordersPage - 1)}
+            >
+              ← Previous
+            </button>
+            <span class="text-sm text-slate-500">
+              Page {ordersPage + 1} of {ordersTotalPages}
+            </span>
+            <button
+              class="text-sm text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              disabled={ordersPage >= ordersTotalPages - 1}
+              onclick={() => loadOrders(ordersPage + 1)}
+            >
+              Next →
+            </button>
+          </div>
+        {/if}
       {/if}
     {/if}
   </div>

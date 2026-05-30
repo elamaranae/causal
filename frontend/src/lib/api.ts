@@ -30,6 +30,7 @@ export const urls = {
     removeItem: (id: number) => `${BASE}/cart/me/items/${id}`
   },
   orders: {
+    list: (page = 0, size = 10) => `${BASE}/orders?page=${page}&size=${size}`,
     checkout: `${BASE}/orders/checkout`,
     show: (id: number) => `${BASE}/orders/${id}`,
     status: (id: number) => `${BASE}/orders/${id}/status`,

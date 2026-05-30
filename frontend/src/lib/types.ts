@@ -157,3 +157,11 @@ export interface Order {
   billingAddress: OrderAddress | null;
   items: OrderItem[];
 }
+
+export interface OrderListResponse {
+  orders: Order[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
