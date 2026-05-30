@@ -27,19 +27,20 @@ public class OrderEventConsumer {
     public void onOrderEvent(String message) {
         try {
             JsonNode payload = objectMapper.readTree(message);
+            String eventId = payload.has("eventId") ? payload.get("eventId").asText() : null;
             String status = payload.get("status").asText();
             Long orderId = payload.get("orderId").asLong();
             List<Map<String, Object>> items = parseItems(payload.get("items"));
 
-            log.info("Received order event for order {} with status {}", orderId, status);
+            log.info("Received order event {} for order {} with status {}", eventId, orderId, status);
 
             switch (status) {
                 case "PAYMENT_SUCCESS" -> {
-                    reservationService.confirmReservation(orderId, items);
+                    reservationService.confirmReservation(eventId, orderId, items);
                     log.info("Confirmed reservation for order {}", orderId);
                 }
                 case "PAYMENT_FAILED" -> {
-                    reservationService.releaseReservation(orderId, items);
+                    reservationService.releaseReservation(eventId, orderId, items);
                     log.info("Released reservation for order {}", orderId);
                 }
                 default -> log.warn("Unknown payment status: {}", status);

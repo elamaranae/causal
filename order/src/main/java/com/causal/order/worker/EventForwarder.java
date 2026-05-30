@@ -8,6 +8,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Duration;
 
@@ -32,7 +33,13 @@ public class EventForwarder {
         log.info("Forwarding event to Kafka: {}", body);
 
         JsonNode node = objectMapper.readTree(body);
-        JsonNode payload = node.has("payload") ? node.get("payload") : node;
+        JsonNode payloadNode = node.has("payload") ? node.get("payload") : node;
+
+        // Include the outbox event ID in the forwarded payload for consumer idempotency
+        ObjectNode payload = payloadNode.isObject() ? (ObjectNode) payloadNode : objectMapper.createObjectNode();
+        if (node.has("id") && !payload.has("eventId")) {
+            payload.put("eventId", node.get("id").asText());
+        }
         String key = payload.has("orderId") ? payload.get("orderId").asText() : null;
 
         try {
