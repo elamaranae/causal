@@ -4,6 +4,8 @@ services:
     depends_on:
       causal-cart-db:
         condition: service_healthy
+      causal-kafka:
+        condition: service_healthy
     networks:
       causal-net:
         ipv4_address: 172.20.0.30

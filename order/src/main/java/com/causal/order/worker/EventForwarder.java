@@ -8,7 +8,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Duration;
 
@@ -33,17 +32,16 @@ public class EventForwarder {
         log.info("Forwarding event to Kafka: {}", body);
 
         JsonNode node = objectMapper.readTree(body);
-        JsonNode payloadNode = node.has("payload") ? node.get("payload") : node;
-
-        // Include the outbox event ID in the forwarded payload for consumer idempotency
-        ObjectNode payload = payloadNode.isObject() ? (ObjectNode) payloadNode : objectMapper.createObjectNode();
-        if (node.has("id") && !payload.has("eventId")) {
-            payload.put("eventId", node.get("id").asText());
-        }
+        JsonNode payload = node.has("payload") ? node.get("payload") : node;
         String key = payload.has("orderId") ? payload.get("orderId").asText() : null;
+        String routingKey = message.getMessageProperties().getReceivedRoutingKey();
+
+        var wrapped = objectMapper.createObjectNode();
+        wrapped.put("type", routingKey);
+        wrapped.set("payload", payload);
 
         try {
-            var result = kafkaTemplate.send(TOPIC, key, payload.toString()).get(SEND_TIMEOUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+            var result = kafkaTemplate.send(TOPIC, key, wrapped.toString()).get(SEND_TIMEOUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
             log.info("Forwarded event to Kafka topic {} partition {}",
                     TOPIC, result.getRecordMetadata().partition());
         } catch (Exception e) {

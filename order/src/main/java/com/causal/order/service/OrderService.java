@@ -98,6 +98,7 @@ public class OrderService {
 
         order.setStatus("RESERVED");
         order = orderRepository.save(order);
+        publishOrderStatus(order);
 
         return orderMapper.from(order);
     }
@@ -128,6 +129,7 @@ public class OrderService {
         // Atomically update order status and publish payment event
         order.setStatus("PAYMENT_INITIATED");
         orderRepository.save(order);
+        publishOrderStatus(order);
 
         OutboxEvent event = new OutboxEvent(
                 "job.initiate_payment",
@@ -225,6 +227,7 @@ public class OrderService {
 
         order.setStatus(status);
         orderRepository.save(order);
+        publishOrderStatus(order);
 
         List<Map<String, Object>> items = order.getItems().stream()
                 .map(item -> Map.<String, Object>of(
@@ -236,15 +239,17 @@ public class OrderService {
                 "event.payment_completed",
                 order.getId().toString(),
                 "payment_completed",
-                Map.of(
-                        "orderId", order.getId(),
-                        "userId", order.getUserId(),
-                        "status", status,
-                        "totalAmount", order.getTotalAmount(),
-                        "totalCurrency", order.getTotalCurrency(),
-                        "items", items
-                )
+                null
         );
+        event.setPayload(Map.of(
+                "eventId", event.getId().toString(),
+                "orderId", order.getId(),
+                "userId", order.getUserId(),
+                "status", status,
+                "totalAmount", order.getTotalAmount(),
+                "totalCurrency", order.getTotalCurrency(),
+                "items", items
+        ));
         outboxRepository.save(event);
     }
 
@@ -266,6 +271,7 @@ public class OrderService {
 
         order.setStatus(status);
         orderRepository.save(order);
+        publishOrderStatus(order);
 
         if ("FAILED".equals(status)) {
             OutboxEvent event = new OutboxEvent(
@@ -281,6 +287,22 @@ public class OrderService {
             );
             outboxRepository.save(event);
         }
+    }
+
+    private void publishOrderStatus(Order order) {
+        OutboxEvent statusEvent = new OutboxEvent(
+                "event.order_status",
+                order.getId().toString(),
+                "order_status_changed",
+                null
+        );
+        statusEvent.setPayload(Map.of(
+                "eventId", statusEvent.getId().toString(),
+                "orderId", order.getId(),
+                "userId", order.getUserId(),
+                "status", order.getStatus()
+        ));
+        outboxRepository.save(statusEvent);
     }
 
     private List<StockReservationItemRequest> toReservationItems(Order order) {

@@ -6,6 +6,7 @@ MARKER_END="# causal-end"
 
 ENTRIES="
 172.20.0.2    causal-gateway
+172.20.0.3    causal-kafka
 172.20.0.10   causal-identity-app
 172.20.0.11   causal-identity-db
 172.20.0.20   causal-product-app
@@ -14,8 +15,12 @@ ENTRIES="
 172.20.0.31   causal-cart-db
 172.20.0.40   causal-inventory-app
 172.20.0.41   causal-inventory-db
+172.20.0.42   causal-inventory-rabbitmq
+172.20.0.43   causal-inventory-debezium
 172.20.0.50   causal-order-app
 172.20.0.51   causal-order-db
+172.20.0.52   causal-order-rabbitmq
+172.20.0.53   causal-order-debezium
 172.20.0.60   causal-profile-app
 172.20.0.61   causal-profile-db
 172.20.0.100  o11y-otel-collector

@@ -26,13 +26,21 @@ public class OrderEventConsumer {
     @KafkaListener(topics = "order.events", groupId = "inventory")
     public void onOrderEvent(String message) {
         try {
-            JsonNode payload = objectMapper.readTree(message);
+            JsonNode root = objectMapper.readTree(message);
+            String type = root.has("type") ? root.get("type").asText() : null;
+
+            // Only process payment_completed events
+            if (!"event.payment_completed".equals(type)) {
+                return;
+            }
+
+            JsonNode payload = root.get("payload");
             String eventId = payload.has("eventId") ? payload.get("eventId").asText() : null;
             String status = payload.get("status").asText();
             Long orderId = payload.get("orderId").asLong();
             List<Map<String, Object>> items = parseItems(payload.get("items"));
 
-            log.info("Received order event {} for order {} with status {}", eventId, orderId, status);
+            log.info("Received payment event {} for order {} with status {}", eventId, orderId, status);
 
             switch (status) {
                 case "PAYMENT_SUCCESS" -> {

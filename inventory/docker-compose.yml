@@ -42,6 +42,7 @@ services:
       retries: 5
     volumes:
       - causal-inventory-rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     networks:
       causal-net:
         ipv4_address: 172.20.0.42

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { apiFetch, urls } from '$lib/api';
   import type { Order } from '$lib/types';
@@ -37,6 +38,11 @@
   let placing = $state(false);
   let error = $state<string | null>(null);
 
+  // Polling state
+  let polling = $state(false);
+  let orderStatus = $state<string | null>(null);
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
+
   function continueToPayment(e: Event) {
     e.preventDefault();
     step = 'payment';
@@ -58,6 +64,33 @@
       phoneNumber: phone || null
     };
   }
+
+  function startPolling() {
+    polling = true;
+    orderStatus = 'PAYMENT_INITIATED';
+    pollTimer = setInterval(async () => {
+      try {
+        const res = await apiFetch(urls.orders.status(order.id));
+        if (!res.ok) return;
+        const data: { id: number; status: string } = await res.json();
+        orderStatus = data.status;
+        if (data.status !== 'PAYMENT_INITIATED') {
+          stopPolling();
+        }
+      } catch {
+        // keep polling
+      }
+    }, 2000);
+  }
+
+  function stopPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  onDestroy(stopPolling);
 
   async function placeOrder(e: Event) {
     e.preventDefault();
@@ -85,7 +118,7 @@
         })
       });
       if (res.ok) {
-        step = 'done' as Step;
+        startPolling();
       } else {
         const data = await res.json();
         error = data.message || 'Payment failed';
@@ -97,7 +130,9 @@
     }
   }
 
-  let done = $derived(step === ('done' as Step));
+  let isTerminal = $derived(orderStatus !== null && orderStatus !== 'PAYMENT_INITIATED');
+  let isSuccess = $derived(orderStatus === 'PAYMENT_SUCCESS');
+  let isFailed = $derived(isTerminal && !isSuccess);
 </script>
 
 <style>
@@ -307,6 +342,32 @@
     justify-content: center;
     margin: 0 auto 1.25rem;
   }
+  .fail-icon {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    background: #fef2f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+  }
+  .spinner-wrap {
+    margin: 0 auto 1.25rem;
+    display: flex;
+    justify-content: center;
+  }
+  .spinner {
+    width: 3rem;
+    height: 3rem;
+    border: 3px solid #e2e8f0;
+    border-top-color: #0f172a;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
   .item-name {
     font-size: 0.875rem;
     font-weight: 500;
@@ -330,19 +391,41 @@
   }
 </style>
 
-{#if done}
+{#if polling}
   <div class="success-wrap">
     <div class="success-box">
-      <div class="success-icon">
-        <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#22c55e">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-        </svg>
-      </div>
-      <p style="font-size:1.25rem;font-weight:600;color:#0f172a;">Order placed</p>
-      <p style="font-size:0.875rem;color:#64748b;margin-top:0.5rem;">Order #{order.id} is being processed.</p>
-      <div style="margin-top:1.5rem;">
-        <Button variant="outline" onclick={() => goto('/')}>Continue Shopping</Button>
-      </div>
+      {#if !isTerminal}
+        <!-- Processing -->
+        <div class="spinner-wrap">
+          <div class="spinner"></div>
+        </div>
+        <p style="font-size:1.25rem;font-weight:600;color:#0f172a;">Processing payment</p>
+        <p style="font-size:0.875rem;color:#64748b;margin-top:0.5rem;">Order #{order.id} — please wait...</p>
+      {:else if isSuccess}
+        <!-- Completed -->
+        <div class="success-icon">
+          <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#22c55e">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+        </div>
+        <p style="font-size:1.25rem;font-weight:600;color:#0f172a;">Order completed</p>
+        <p style="font-size:0.875rem;color:#64748b;margin-top:0.5rem;">Order #{order.id} has been placed successfully.</p>
+        <div style="margin-top:1.5rem;">
+          <Button variant="outline" onclick={() => goto('/')}>Continue Shopping</Button>
+        </div>
+      {:else}
+        <!-- Failed -->
+        <div class="fail-icon">
+          <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#ef4444">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+        </div>
+        <p style="font-size:1.25rem;font-weight:600;color:#0f172a;">Payment failed</p>
+        <p style="font-size:0.875rem;color:#64748b;margin-top:0.5rem;">Order #{order.id} — {orderStatus}</p>
+        <div style="margin-top:1.5rem;">
+          <Button variant="outline" onclick={() => goto('/')}>Back to Shop</Button>
+        </div>
+      {/if}
     </div>
   </div>
 {:else}
