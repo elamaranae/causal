@@ -2,7 +2,6 @@ package com.causal.profile.repository;
 
 import com.causal.profile.model.Address;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -16,8 +15,6 @@ public interface AddressRepository extends JpaRepository<Address, Long> {
 
     Optional<Address> findByIdAndUserId(Long id, Long userId);
 
-    @Modifying
-    @Query("DELETE FROM Address a WHERE a.id = :id AND a.userId = :userId " +
-            "AND a.id NOT IN (SELECT p.defaultAddressId FROM Profile p WHERE p.userId = :userId AND p.defaultAddressId IS NOT NULL)")
-    int deleteIfNotDefault(Long id, Long userId);
+    @Query(value = "SELECT delete_address_if_not_default(:addressId, :userId)", nativeQuery = true)
+    int deleteIfNotDefault(Long addressId, Long userId);
 }

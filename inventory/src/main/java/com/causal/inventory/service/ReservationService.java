@@ -32,9 +32,9 @@ import java.util.stream.Collectors;
 @Service
 public class ReservationService {
 
-    private static final int RESERVATION_EXPIRY_MINUTES = 15;
+    private static final int RESERVATION_EXPIRY_MINUTES = 10;
     private static final int EXTEND_MINUTES = 5;
-    private static final int MAX_LIFETIME_MINUTES = 10;
+    private static final int MAX_LIFETIME_MINUTES = 25;
 
     private final ReservationRepository reservationRepository;
     private final StockRepository stockRepository;

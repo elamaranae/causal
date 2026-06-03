@@ -12,12 +12,10 @@ import com.causal.cart.config.CurrentUser;
 import com.causal.cart.dto.request.CartItemCreateRequest;
 import com.causal.cart.dto.request.CartItemPatchRequest;
 import com.causal.cart.dto.response.CartItemShowResponse;
-import com.causal.cart.dto.response.CartShowResponse;
 import com.causal.cart.mapper.CartMapper;
 import com.causal.cart.model.Cart;
 import com.causal.cart.model.CartItem;
 import com.causal.cart.repository.CartItemRepository;
-import com.causal.cart.repository.CartRepository;
 
 import java.util.List;
 
@@ -25,15 +23,13 @@ import java.util.List;
 public class CartItemService {
   private static final int MAX_CART_ITEMS = 100;
 
-  private final CartRepository cartRepository;
   private final CartItemRepository cartItemRepository;
   private final CartMapper mapper;
   private final CurrentUser currentUser;
   private final CartService cartService;
   private final InventoryGateway inventoryGateway;
 
-  public CartItemService(CartRepository cartRepository, CartItemRepository cartItemRepository, CartMapper mapper, CurrentUser currentUser, CartService cartService, InventoryGateway inventoryGateway) {
-    this.cartRepository = cartRepository;
+  public CartItemService(CartItemRepository cartItemRepository, CartMapper mapper, CurrentUser currentUser, CartService cartService, InventoryGateway inventoryGateway) {
     this.cartItemRepository = cartItemRepository;
     this.mapper = mapper;
     this.currentUser = currentUser;
@@ -41,14 +37,16 @@ public class CartItemService {
     this.inventoryGateway = inventoryGateway;
   }
 
+  @Transactional
   public CartItemShowResponse createCartItem(CartItemCreateRequest request) {
     Cart cart = cartService.getOrCreateCart();
-    long itemCount = cartItemRepository.countByCartId(cart.getId());
-    if (itemCount >= MAX_CART_ITEMS) {
+    validateStockAvailability(request.skuId(), request.quantity());
+    long itemId = cartItemRepository.addWithLimit(cart.getId(), request.skuId(), request.quantity(), MAX_CART_ITEMS);
+    if (itemId == -1) {
       throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Cart cannot exceed " + MAX_CART_ITEMS + " items");
     }
-    validateStockAvailability(request.skuId(), request.quantity());
-    return mapper.cartItemShowResponseFrom(createItemFromRequest(request, cart));
+    CartItem item = cartItemRepository.findById(itemId).orElseThrow();
+    return mapper.cartItemShowResponseFrom(item);
   }
 
   @Transactional

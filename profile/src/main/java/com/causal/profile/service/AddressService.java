@@ -6,7 +6,6 @@ import com.causal.profile.dto.request.AddressUpdateRequest;
 import com.causal.profile.dto.response.AddressShowResponse;
 import com.causal.profile.mapper.ProfileMapper;
 import com.causal.profile.model.Address;
-import com.causal.profile.model.Profile;
 import com.causal.profile.repository.AddressRepository;
 import com.causal.profile.repository.ProfileRepository;
 import org.springframework.http.HttpStatus;
@@ -96,10 +95,12 @@ public class AddressService {
 
     @Transactional
     public void deleteAddress(Long id) {
-        getAddress(id); // verify exists and belongs to user
-        int deleted = addressRepository.deleteIfNotDefault(id, currentUser.id());
-        if (deleted == 0) {
+        int result = addressRepository.deleteIfNotDefault(id, currentUser.id());
+        if (result == -1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot delete default address");
+        }
+        if (result == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Address not found");
         }
     }
 
