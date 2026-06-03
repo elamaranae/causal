@@ -94,9 +94,13 @@ public class AddressService {
         return profileMapper.from(address);
     }
 
+    @Transactional
     public void deleteAddress(Long id) {
-        Address address = getAddress(id);
-        addressRepository.delete(address);
+        getAddress(id); // verify exists and belongs to user
+        int deleted = addressRepository.deleteIfNotDefault(id, currentUser.id());
+        if (deleted == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot delete default address");
+        }
     }
 
     private Address getAddress(Long id) {
