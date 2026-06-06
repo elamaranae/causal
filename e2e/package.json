@@ -1,0 +1,12 @@
+{
+  "name": "causal-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:browser": "playwright test --project=browser"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}
