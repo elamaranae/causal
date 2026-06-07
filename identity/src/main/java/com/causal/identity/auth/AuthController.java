@@ -60,7 +60,6 @@ public class AuthController {
         }
 
         User user = new User();
-        user.setName(registrationDto.name());
         user.setEmail(registrationDto.email());
         user.setPassword(passwordEncoder.encode(registrationDto.password()));
 
