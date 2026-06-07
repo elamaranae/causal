@@ -1,6 +1,8 @@
 services:
   causal-identity-app:
     image: identity:latest
+    env_file:
+      - ../.env
     environment:
       - JWT_PRIVATE_KEY_PATH=/keys/private.pem
       - JWT_PUBLIC_KEY_PATH=/keys/public.pem
@@ -18,7 +20,7 @@ services:
     environment:
       - POSTGRES_DB=userdb
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s

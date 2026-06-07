@@ -230,7 +230,7 @@ public class OrderService {
 
     @Transactional
     public void handlePaymentWebhook(Long orderId, OrderStatus status) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findDetailById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
         if (status == order.getStatus()) {
@@ -271,7 +271,7 @@ public class OrderService {
 
     @Transactional
     public void handleOrderCompleteWebhook(Long orderId, OrderStatus status) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findDetailById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
         // Idempotent — already in this status

@@ -1,6 +1,8 @@
 services:
   causal-order-app:
     image: order:latest
+    env_file:
+      - ../.env
     depends_on:
       causal-order-db:
         condition: service_healthy
@@ -16,7 +18,7 @@ services:
     environment:
       - POSTGRES_DB=orderdb
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -31,8 +33,8 @@ services:
     image: rabbitmq:4-management
     restart: always
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
       interval: 10s
@@ -47,6 +49,8 @@ services:
   causal-order-debezium:
     image: quay.io/debezium/server:latest
     restart: always
+    env_file:
+      - ../.env
     depends_on:
       causal-order-db:
         condition: service_healthy
