@@ -1,35 +1,14 @@
 import { test, expect } from '@playwright/test';
-
-function uniqueEmail(): string {
-  return `e2e-auth-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.dev`;
-}
-
-const PASSWORD = 'TestPass123!';
+import { uniqueEmail, PASSWORD, registerAndLogin } from '../helpers/browser';
 
 test.describe('Auth flows', () => {
   test('register and redirect to home', async ({ page }) => {
-    const email = uniqueEmail();
-    await page.goto('/register');
-
-    await page.getByLabel('Email address').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-    await page.getByLabel('Confirm Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Create account' }).click();
-
-    await expect(page).toHaveURL('/', { timeout: 10_000 });
+    await registerAndLogin(page);
     await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
   });
 
   test('login and redirect to home', async ({ page }) => {
-    const email = uniqueEmail();
-
-    // Register first
-    await page.goto('/register');
-    await page.getByLabel('Email address').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-    await page.getByLabel('Confirm Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page).toHaveURL('/', { timeout: 10_000 });
+    const email = await registerAndLogin(page);
 
     // Logout
     await page.getByRole('button', { name: 'Logout' }).click();
@@ -46,14 +25,7 @@ test.describe('Auth flows', () => {
   });
 
   test('logout shows login link', async ({ page }) => {
-    const email = uniqueEmail();
-    await page.goto('/register');
-    await page.getByLabel('Email address').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-    await page.getByLabel('Confirm Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page).toHaveURL('/', { timeout: 10_000 });
-
+    await registerAndLogin(page);
     await page.getByRole('button', { name: 'Logout' }).click();
     await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible();
   });

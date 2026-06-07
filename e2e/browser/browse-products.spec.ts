@@ -1,20 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-function uniqueEmail(): string {
-  return `e2e-browse-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.dev`;
-}
-
-const PASSWORD = 'TestPass123!';
-
-async function registerAndLogin(page: import('@playwright/test').Page) {
-  const email = uniqueEmail();
-  await page.goto('/register');
-  await page.getByLabel('Email address').fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-  await page.getByLabel('Confirm Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL('/', { timeout: 10_000 });
-}
+import { registerAndLogin } from '../helpers/browser';
 
 test.describe('Browse products', () => {
   test('home page loads trending products', async ({ page }) => {
@@ -28,7 +13,6 @@ test.describe('Browse products', () => {
   test('click category filters products', async ({ page }) => {
     await registerAndLogin(page);
 
-    // Wait for categories to load in sidebar
     const categoryButtons = page.locator('aside nav button');
     await expect(categoryButtons.nth(1)).toBeVisible({ timeout: 10_000 });
 
@@ -58,10 +42,7 @@ test.describe('Browse products', () => {
     await firstProduct.click();
     await expect(page).toHaveURL(/\/products\/\d+/);
 
-    // Price should be visible on the detail page
     await expect(page.locator('article').locator('text=/\\$\\d+\\.\\d{2}/').first()).toBeVisible();
-
-    // Add to Cart or Out of Stock button should be visible
     await expect(
       page.getByRole('button', { name: /Add to Cart|Out of Stock|Unavailable/ })
     ).toBeVisible();

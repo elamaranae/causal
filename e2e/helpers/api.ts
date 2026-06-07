@@ -2,10 +2,6 @@ import type { APIRequestContext } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'http://causal-gateway';
 
-/**
- * API client that manages cookies (auth + CSRF) across requests.
- * Works with Playwright's APIRequestContext for cookie persistence.
- */
 export class ApiClient {
   constructor(private request: APIRequestContext) {}
 
@@ -18,6 +14,13 @@ export class ApiClient {
     if (match) this.csrfToken = match[1];
   }
 
+  private mutationHeaders(hasBody: boolean): Record<string, string> {
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
+    if (hasBody) headers['Content-Type'] = 'application/json';
+    return headers;
+  }
+
   async get(path: string) {
     const res = await this.request.get(`${BASE_URL}${path}`, {
       headers: { Accept: 'application/json' },
@@ -27,12 +30,8 @@ export class ApiClient {
   }
 
   async post(path: string, data?: unknown) {
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
-    if (data !== undefined) headers['Content-Type'] = 'application/json';
-
     const res = await this.request.post(`${BASE_URL}${path}`, {
-      headers,
+      headers: this.mutationHeaders(data !== undefined),
       data,
     });
     this.extractCsrf(res.headers());
@@ -40,12 +39,8 @@ export class ApiClient {
   }
 
   async patch(path: string, data?: unknown) {
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
-    if (data !== undefined) headers['Content-Type'] = 'application/json';
-
     const res = await this.request.patch(`${BASE_URL}${path}`, {
-      headers,
+      headers: this.mutationHeaders(data !== undefined),
       data,
     });
     this.extractCsrf(res.headers());
@@ -53,10 +48,9 @@ export class ApiClient {
   }
 
   async delete(path: string) {
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
-
-    const res = await this.request.delete(`${BASE_URL}${path}`, { headers });
+    const res = await this.request.delete(`${BASE_URL}${path}`, {
+      headers: this.mutationHeaders(false),
+    });
     this.extractCsrf(res.headers());
     return res;
   }

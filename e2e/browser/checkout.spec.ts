@@ -1,15 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { ApiClient } from '../helpers/api';
-
-function uniqueEmail(): string {
-  return `e2e-checkout-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.dev`;
-}
-
-const PASSWORD = 'TestPass123!';
+import { uniqueEmail, PASSWORD, navigateToInStockProduct } from '../helpers/browser';
+import { findInStockProduct } from '../helpers/products';
 
 test.describe('Checkout flow', () => {
   test('full flow: browse, add to cart, setup profile, checkout', async ({ page, request }) => {
-    const email = uniqueEmail();
+    const email = uniqueEmail('checkout');
 
     // Setup profile & address via API (faster than UI)
     const api = new ApiClient(request);
@@ -29,6 +25,9 @@ test.describe('Checkout flow', () => {
       phoneNumber: '555-0123',
     });
 
+    // Find an in-stock product via API
+    const product = await findInStockProduct(api);
+
     // Login in the browser
     await page.goto('/login');
     await page.getByLabel('Email address').fill(email);
@@ -36,23 +35,16 @@ test.describe('Checkout flow', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL('/', { timeout: 10_000 });
 
-    // Navigate to product and add to cart
-    await page.locator('a[href^="/products/"]').first().click();
-    await expect(page).toHaveURL(/\/products\/\d+/);
+    // Navigate to the in-stock product and select the right variant
+    await navigateToInStockProduct(page, product);
+    await page.getByRole('button', { name: 'Add to Cart' }).click();
+    await expect(page.locator('header span.rounded-full').first()).toBeVisible({ timeout: 5_000 });
 
-    const addButton = page.getByRole('button', { name: 'Add to Cart' });
-    if (await addButton.isVisible()) {
-      await addButton.click();
-      await expect(page.locator('span:has-text("1")')).toBeVisible({ timeout: 5_000 });
+    // Open cart and checkout
+    await page.locator('header button:has(svg)').first().click();
+    await expect(page.getByText('Shopping cart')).toBeVisible();
 
-      // Open cart and checkout
-      await page.locator('header button:has(svg)').first().click();
-      await expect(page.getByText('Shopping cart')).toBeVisible();
-
-      await page.getByRole('button', { name: 'Checkout' }).click();
-
-      // Should redirect to payment page
-      await expect(page).toHaveURL(/\/orders\/payment\?orderId=\d+/, { timeout: 15_000 });
-    }
+    await page.getByRole('button', { name: 'Checkout' }).click();
+    await expect(page).toHaveURL(/\/orders\/payment\?orderId=\d+/, { timeout: 15_000 });
   });
 });

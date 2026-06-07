@@ -1,6 +1,8 @@
 import { test as base, request as playwrightRequest } from '@playwright/test';
 import { ApiClient } from './api';
 
+export const TEST_PASSWORD = 'TestPass123!';
+
 function uniqueEmail(): string {
   return `e2e-api-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.dev`;
 }
@@ -9,7 +11,6 @@ type Fixtures = {
   apiClient: ApiClient;
   authedClient: ApiClient;
   testEmail: string;
-  testPassword: string;
 };
 
 export const test = base.extend<Fixtures>({
@@ -23,14 +24,10 @@ export const test = base.extend<Fixtures>({
     await use(uniqueEmail());
   },
 
-  testPassword: async ({}, use) => {
-    await use('TestPass123!');
-  },
-
-  authedClient: async ({ testEmail, testPassword }, use) => {
+  authedClient: async ({ testEmail }, use) => {
     const ctx = await playwrightRequest.newContext();
     const client = new ApiClient(ctx);
-    const res = await client.register(testEmail, testPassword);
+    const res = await client.register(testEmail, TEST_PASSWORD);
     if (!res.ok()) {
       const body = await res.text();
       await ctx.dispose();
