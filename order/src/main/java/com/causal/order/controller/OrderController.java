@@ -46,12 +46,12 @@ public class OrderController {
         orderService.pay(id, request);
     }
 
-    @PostMapping("orders/payment/webhook")
+    @PostMapping("internal/orders/payment/webhook")
     public void paymentWebhook(@Valid @RequestBody PaymentWebhookRequest request) {
         orderService.handlePaymentWebhook(request.orderId(), request.status());
     }
 
-    @PostMapping("orders/complete/webhook")
+    @PostMapping("internal/orders/complete/webhook")
     public void completeWebhook(@Valid @RequestBody OrderCompleteWebhookRequest request) {
         orderService.handleOrderCompleteWebhook(request.orderId(), request.status());
     }

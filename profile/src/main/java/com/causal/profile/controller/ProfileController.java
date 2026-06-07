@@ -21,7 +21,7 @@ public class ProfileController {
         return profileService.getCurrentUserProfile();
     }
 
-    @GetMapping("/profiles/{userId}")
+    @GetMapping("/internal/profiles/{userId}")
     public ProfileShowResponse getProfile(@PathVariable Long userId) {
         return profileService.getProfile(userId);
     }

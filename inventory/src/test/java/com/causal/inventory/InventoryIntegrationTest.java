@@ -47,9 +47,8 @@ class InventoryIntegrationTest {
     @MockitoBean
     private OrderGateway orderGateway;
 
-    private static SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor jwt() {
-        return SecurityMockMvcRequestPostProcessors.jwt()
-                .jwt(j -> j.subject("1").claim("email", "test@test.com"));
+    private static SecurityMockMvcRequestPostProcessors.UserRequestPostProcessor internalUser() {
+        return SecurityMockMvcRequestPostProcessors.user("internal-service").roles("INTERNAL");
     }
 
     @BeforeEach
@@ -72,7 +71,7 @@ class InventoryIntegrationTest {
     void getStock_returnsRealDbData() throws Exception {
         createStock(100L, 1L, 50);
 
-        mockMvc.perform(get("/inventory/stocks/100").with(jwt()))
+        mockMvc.perform(get("/internal/inventory/stocks/100").with(internalUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.skuId").value(100))
                 .andExpect(jsonPath("$.quantity").value(50));
@@ -80,7 +79,7 @@ class InventoryIntegrationTest {
 
     @Test
     void getStock_notFound_returns404() throws Exception {
-        mockMvc.perform(get("/inventory/stocks/999").with(jwt()))
+        mockMvc.perform(get("/internal/inventory/stocks/999").with(internalUser()))
                 .andExpect(status().isNotFound());
     }
 
@@ -88,8 +87,8 @@ class InventoryIntegrationTest {
     void reserve_decrementsAvailableInDb() throws Exception {
         createStock(100L, 1L, 50);
 
-        mockMvc.perform(post("/inventory/stocks/reserve")
-                        .with(jwt())
+        mockMvc.perform(post("/internal/inventory/stocks/reserve")
+                        .with(internalUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -113,8 +112,8 @@ class InventoryIntegrationTest {
     void reserve_insufficientStock_returns409() throws Exception {
         createStock(100L, 1L, 3);
 
-        mockMvc.perform(post("/inventory/stocks/reserve")
-                        .with(jwt())
+        mockMvc.perform(post("/internal/inventory/stocks/reserve")
+                        .with(internalUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -143,12 +142,12 @@ class InventoryIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(post("/inventory/stocks/reserve")
-                        .with(jwt()).contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/internal/inventory/stocks/reserve")
+                        .with(internalUser()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/inventory/stocks/reserve")
-                        .with(jwt()).contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/internal/inventory/stocks/reserve")
+                        .with(internalUser()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk());
 
         Stock stock = stockRepository.findBySkuId(100L).orElseThrow();
@@ -159,16 +158,16 @@ class InventoryIntegrationTest {
     void reserve_thenExtend_updatesExpiry() throws Exception {
         createStock(100L, 1L, 50);
 
-        mockMvc.perform(post("/inventory/stocks/reserve")
-                        .with(jwt())
+        mockMvc.perform(post("/internal/inventory/stocks/reserve")
+                        .with(internalUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"userId": 1, "orderId": 1, "items": [{"skuId": 100, "quantity": 5}]}
                                 """))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/inventory/reservations/extend")
-                        .with(jwt())
+        mockMvc.perform(post("/internal/inventory/reservations/extend")
+                        .with(internalUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"userId": 1, "orderId": 1, "items": [{"skuId": 100, "quantity": 5}]}
@@ -182,8 +181,8 @@ class InventoryIntegrationTest {
         createStock(100L, 1L, 50);
         createStock(200L, 2L, 30);
 
-        mockMvc.perform(post("/inventory/stocks/skus/bulk")
-                        .with(jwt())
+        mockMvc.perform(post("/internal/inventory/stocks/skus/bulk")
+                        .with(internalUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"skuIds": [100, 200]}

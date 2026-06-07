@@ -51,9 +51,6 @@
       @cart path /cart /cart/*
       reverse_proxy @cart causal-cart-app:8080
 
-      @inventory path /inventory /inventory/*
-      reverse_proxy @inventory causal-inventory-app:8080
-
       @profile path /profiles /profiles/*
       reverse_proxy @profile causal-profile-app:8080
 

@@ -12,6 +12,7 @@ import com.causal.order.client.product.dto.response.SkuShowResponse;
 import com.causal.order.client.profile.ProfileGateway;
 import com.causal.order.client.profile.dto.response.ProfileShowResponse;
 import com.causal.order.model.Order;
+import com.causal.order.model.OrderStatus;
 import com.causal.order.repository.OrderRepository;
 import com.causal.order.repository.OutboxRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -123,7 +124,7 @@ class OrderIntegrationTest {
         List<Order> orders = orderRepository.findByUserId(1L);
         assertEquals(1, orders.size());
         Order order = orders.get(0);
-        assertEquals("RESERVED", order.getStatus());
+        assertEquals(OrderStatus.RESERVED, order.getStatus());
         assertEquals(0, new BigDecimal("109.97").compareTo(order.getTotalAmount()));
         assertEquals("USD", order.getTotalCurrency());
 
@@ -153,7 +154,7 @@ class OrderIntegrationTest {
                 .andExpect(status().isOk());
 
         Order order = orderRepository.findById(orderId).orElseThrow();
-        assertEquals("PAYMENT_INITIATED", order.getStatus());
+        assertEquals(OrderStatus.PAYMENT_INITIATED, order.getStatus());
     }
 
     @Test
@@ -176,19 +177,21 @@ class OrderIntegrationTest {
                         .with(jwt()).contentType(MediaType.APPLICATION_JSON).content(payBody))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/orders/payment/webhook")
+        mockMvc.perform(post("/internal/orders/payment/webhook")
+                        .with(SecurityMockMvcRequestPostProcessors.user("internal-service").roles("INTERNAL"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"orderId\":" + orderId + ",\"status\":\"PAYMENT_SUCCESS\"}"))
                 .andExpect(status().isOk());
 
-        assertEquals("PAYMENT_SUCCESS", orderRepository.findById(orderId).orElseThrow().getStatus());
+        assertEquals(OrderStatus.PAYMENT_SUCCESS, orderRepository.findById(orderId).orElseThrow().getStatus());
 
-        mockMvc.perform(post("/orders/complete/webhook")
+        mockMvc.perform(post("/internal/orders/complete/webhook")
+                        .with(SecurityMockMvcRequestPostProcessors.user("internal-service").roles("INTERNAL"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"orderId\":" + orderId + ",\"status\":\"COMPLETED\"}"))
                 .andExpect(status().isOk());
 
-        assertEquals("COMPLETED", orderRepository.findById(orderId).orElseThrow().getStatus());
+        assertEquals(OrderStatus.COMPLETED, orderRepository.findById(orderId).orElseThrow().getStatus());
 
         mockMvc.perform(get("/orders").with(jwt()))
                 .andExpect(status().isOk())

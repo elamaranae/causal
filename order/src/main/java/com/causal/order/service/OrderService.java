@@ -19,6 +19,7 @@ import com.causal.order.dto.response.OrderStatusResponse;
 import com.causal.order.mapper.OrderMapper;
 import com.causal.order.model.Order;
 import com.causal.order.model.OrderItem;
+import com.causal.order.model.OrderStatus;
 import com.causal.order.model.OutboxEvent;
 import com.causal.order.repository.OrderRepository;
 import com.causal.order.repository.OutboxRepository;
@@ -111,7 +112,7 @@ public class OrderService {
         // Reserve inventory (critical section)
         reserveInventory(order);
 
-        order.setStatus("RESERVED");
+        order.setStatus(OrderStatus.RESERVED);
         order = orderRepository.save(order);
         publishOrderStatus(order);
 
@@ -123,7 +124,7 @@ public class OrderService {
         Order order = orderRepository.findDetailById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
-        if (!"RESERVED".equals(order.getStatus())) {
+        if (order.getStatus() != OrderStatus.RESERVED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is not in RESERVED status");
         }
 
@@ -132,7 +133,7 @@ public class OrderService {
         try {
             inventoryGateway.extendReservation(order.getUserId(), order.getId(), items);
         } catch (Exception e) {
-            order.setStatus("RESERVATION_EXPIRED");
+            order.setStatus(OrderStatus.RESERVATION_EXPIRED);
             orderRepository.save(order);
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Reservation expired, please checkout again");
         }
@@ -142,7 +143,7 @@ public class OrderService {
         order.setBillingAddress(orderMapper.from(request.billingAddress()));
 
         // Atomically update order status and publish payment event
-        order.setStatus("PAYMENT_INITIATED");
+        order.setStatus(OrderStatus.PAYMENT_INITIATED);
         orderRepository.save(order);
         publishOrderStatus(order);
 
@@ -187,7 +188,7 @@ public class OrderService {
     private Order buildOrder(Long userId, String currency, CartShowResponse cart, Map<Long, SkuShowResponse> skuMap) {
         Order order = new Order();
         order.setUserId(userId);
-        order.setStatus("PENDING_RESERVATION");
+        order.setStatus(OrderStatus.PENDING_RESERVATION);
         order.setTotalCurrency(currency);
 
         BigDecimal total = BigDecimal.ZERO;
@@ -222,21 +223,21 @@ public class OrderService {
         try {
             inventoryGateway.reserve(order.getUserId(), order.getId(), items);
         } catch (Exception e) {
-            order.setStatus("RESERVATION_FAILED");
+            order.setStatus(OrderStatus.RESERVATION_FAILED);
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Unable to reserve inventory: " + e.getMessage());
         }
     }
 
     @Transactional
-    public void handlePaymentWebhook(Long orderId, String status) {
+    public void handlePaymentWebhook(Long orderId, OrderStatus status) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
-        if (status.equals(order.getStatus())) {
+        if (status == order.getStatus()) {
             return;
         }
 
-        if (!"PAYMENT_INITIATED".equals(order.getStatus())) {
+        if (order.getStatus() != OrderStatus.PAYMENT_INITIATED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Order is not in PAYMENT_INITIATED status");
         }
 
@@ -269,17 +270,17 @@ public class OrderService {
     }
 
     @Transactional
-    public void handleOrderCompleteWebhook(Long orderId, String status) {
+    public void handleOrderCompleteWebhook(Long orderId, OrderStatus status) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
         // Idempotent — already in this status
-        if (status.equals(order.getStatus())) {
+        if (status == order.getStatus()) {
             return;
         }
 
         // Only transition from PAYMENT_SUCCESS
-        if (!"PAYMENT_SUCCESS".equals(order.getStatus())) {
+        if (order.getStatus() != OrderStatus.PAYMENT_SUCCESS) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Order is not in PAYMENT_SUCCESS status, current: " + order.getStatus());
         }
@@ -288,7 +289,7 @@ public class OrderService {
         orderRepository.save(order);
         publishOrderStatus(order);
 
-        if ("FAILED".equals(status)) {
+        if (status == OrderStatus.FAILED) {
             OutboxEvent event = new OutboxEvent(
                     "job.refund",
                     order.getId().toString(),

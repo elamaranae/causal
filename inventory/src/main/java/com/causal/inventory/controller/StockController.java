@@ -24,22 +24,22 @@ public class StockController {
         this.reservationService = reservationService;
     }
 
-    @GetMapping("inventory/stocks/{sku_id}")
+    @GetMapping("internal/inventory/stocks/{sku_id}")
     public StockShowResponse getStock(@PathVariable("sku_id") Long skuId) {
         return stockService.getStock(skuId);
     }
 
-    @PostMapping("inventory/stocks/skus/bulk")
+    @PostMapping("internal/inventory/stocks/skus/bulk")
     public List<StockShowResponse> getStocksBySkuIds(@Valid @RequestBody StockSkuBulkGetRequest request) {
         return stockService.getStocksBySkuIds(request.skuIds());
     }
 
-    @PostMapping("inventory/stocks/products/bulk")
+    @PostMapping("internal/inventory/stocks/products/bulk")
     public List<ProductStockShowResponse> getStocksByProductIds(@Valid @RequestBody StockProductBulkGetRequest request) {
         return stockService.getStocksByProductIds(request.productIds());
     }
 
-    @PostMapping("inventory/stocks/reserve")
+    @PostMapping("internal/inventory/stocks/reserve")
     public ReservationResponse reserve(@Valid @RequestBody StockReserveRequest request) {
         return reservationService.reserve(request);
     }

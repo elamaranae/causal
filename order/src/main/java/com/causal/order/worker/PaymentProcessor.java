@@ -2,6 +2,7 @@ package com.causal.order.worker;
 
 import com.causal.order.config.RabbitMQConfig;
 import com.causal.order.dto.request.PaymentWebhookRequest;
+import com.causal.order.model.OrderStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -20,8 +21,10 @@ public class PaymentProcessor {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
-    public PaymentProcessor(RestClient.Builder restClientBuilder, ObjectMapper objectMapper) {
-        this.restClient = restClientBuilder.baseUrl("http://localhost:8080").build();
+    public PaymentProcessor(RestClient.Builder restClientBuilder, ObjectMapper objectMapper,
+                            @org.springframework.beans.factory.annotation.Value("${services.internal-api-key}") String apiKey) {
+        this.restClient = restClientBuilder.baseUrl("http://localhost:8080")
+                .defaultHeader("X-Internal-Api-Key", apiKey).build();
         this.objectMapper = objectMapper;
     }
 
@@ -39,8 +42,8 @@ public class PaymentProcessor {
                 try {
                     log.info("Sending mock payment webhook for order {}", orderId);
                     restClient.post()
-                            .uri("/orders/payment/webhook")
-                            .body(new PaymentWebhookRequest(orderId, "PAYMENT_SUCCESS"))
+                            .uri("/internal/orders/payment/webhook")
+                            .body(new PaymentWebhookRequest(orderId, OrderStatus.PAYMENT_SUCCESS))
                             .retrieve()
                             .toBodilessEntity();
                     log.info("Mock payment webhook sent for order {}", orderId);

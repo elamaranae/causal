@@ -1,0 +1,14 @@
+package com.causal.order.model;
+
+public enum OrderStatus {
+    PENDING,
+    PENDING_RESERVATION,
+    RESERVED,
+    PAYMENT_INITIATED,
+    PAYMENT_SUCCESS,
+    PAYMENT_FAILED,
+    COMPLETED,
+    FAILED,
+    RESERVATION_FAILED,
+    RESERVATION_EXPIRED
+}

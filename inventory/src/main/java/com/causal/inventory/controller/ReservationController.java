@@ -17,7 +17,7 @@ public class ReservationController {
         this.reservationService = reservationService;
     }
 
-    @PostMapping("inventory/reservations/extend")
+    @PostMapping("internal/inventory/reservations/extend")
     public ReservationResponse extend(@Valid @RequestBody ReservationExtendRequest request) {
         return reservationService.extend(request);
     }

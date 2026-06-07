@@ -1,5 +1,6 @@
 package com.causal.cart.event;
 
+import com.causal.cart.model.OrderStatus;
 import com.causal.cart.repository.CartRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -31,8 +32,8 @@ public class OrderStatusEventConsumer {
         }
 
         JsonNode payload = root.get("payload");
-        String status = payload.has("status") ? payload.get("status").asText() : null;
-        if (!"COMPLETED".equals(status)) {
+        String statusText = payload.has("status") ? payload.get("status").asText() : null;
+        if (!OrderStatus.COMPLETED.name().equals(statusText)) {
             return;
         }
 

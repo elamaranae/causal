@@ -1,5 +1,6 @@
 package com.causal.inventory.event;
 
+import com.causal.inventory.model.OrderStatus;
 import com.causal.inventory.service.ReservationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -36,18 +37,18 @@ public class OrderEventConsumer {
 
             JsonNode payload = root.get("payload");
             String eventId = payload.has("eventId") ? payload.get("eventId").asText() : null;
-            String status = payload.get("status").asText();
+            OrderStatus status = OrderStatus.valueOf(payload.get("status").asText());
             Long orderId = payload.get("orderId").asLong();
             List<Map<String, Object>> items = parseItems(payload.get("items"));
 
             log.info("Received payment event {} for order {} with status {}", eventId, orderId, status);
 
             switch (status) {
-                case "PAYMENT_SUCCESS" -> {
+                case PAYMENT_SUCCESS -> {
                     reservationService.confirmReservation(eventId, orderId, items);
                     log.info("Confirmed reservation for order {}", orderId);
                 }
-                case "PAYMENT_FAILED" -> {
+                case PAYMENT_FAILED -> {
                     reservationService.releaseReservation(eventId, orderId, items);
                     log.info("Released reservation for order {}", orderId);
                 }

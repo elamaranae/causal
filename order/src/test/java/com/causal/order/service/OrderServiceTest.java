@@ -19,6 +19,7 @@ import com.causal.order.dto.response.OrderShowResponse;
 import com.causal.order.mapper.OrderMapper;
 import com.causal.order.model.Order;
 import com.causal.order.model.OrderAddress;
+import com.causal.order.model.OrderStatus;
 import com.causal.order.model.OutboxEvent;
 import com.causal.order.repository.OrderRepository;
 import com.causal.order.repository.OutboxRepository;
@@ -120,7 +121,7 @@ class OrderServiceTest {
             when(inventoryGateway.reserve(any(), any(), anyList()))
                     .thenReturn(new ReservationResponse(1L, List.of()));
             when(orderMapper.from(any(Order.class)))
-                    .thenReturn(new OrderShowResponse(1L, "RESERVED", null, null, null, List.of()));
+                    .thenReturn(new OrderShowResponse(1L, OrderStatus.RESERVED, null, null, null, List.of()));
 
             orderService.checkout();
 
@@ -153,14 +154,14 @@ class OrderServiceTest {
             when(inventoryGateway.reserve(any(), any(), anyList()))
                     .thenReturn(new ReservationResponse(1L, List.of()));
             when(orderMapper.from(any(Order.class)))
-                    .thenReturn(new OrderShowResponse(1L, "RESERVED", null, null, null, List.of()));
+                    .thenReturn(new OrderShowResponse(1L, OrderStatus.RESERVED, null, null, null, List.of()));
 
             orderService.checkout();
 
             ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
             verify(orderRepository, atLeast(2)).save(captor.capture());
             Order finalSave = captor.getAllValues().get(1);
-            assertEquals("RESERVED", finalSave.getStatus());
+            assertEquals(OrderStatus.RESERVED, finalSave.getStatus());
         }
 
         @Test
@@ -198,7 +199,7 @@ class OrderServiceTest {
         void notReserved_throws() {
             Order order = new Order();
             order.setId(1L);
-            order.setStatus("PENDING");
+            order.setStatus(OrderStatus.PENDING);
             when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
 
             PaymentRequest request = makePaymentRequest();
@@ -217,7 +218,7 @@ class OrderServiceTest {
             PaymentRequest request = makePaymentRequest();
             assertThrows(ResponseStatusException.class, () -> orderService.pay(1L, request));
 
-            assertEquals("RESERVATION_EXPIRED", order.getStatus());
+            assertEquals(OrderStatus.RESERVATION_EXPIRED, order.getStatus());
             verify(orderRepository).save(order);
         }
 
@@ -234,7 +235,7 @@ class OrderServiceTest {
             PaymentRequest request = makePaymentRequest();
             orderService.pay(1L, request);
 
-            assertEquals("PAYMENT_INITIATED", order.getStatus());
+            assertEquals(OrderStatus.PAYMENT_INITIATED, order.getStatus());
             // 2 outbox events: status change + payment initiation
             verify(outboxRepository, times(2)).save(any(OutboxEvent.class));
         }
@@ -243,7 +244,7 @@ class OrderServiceTest {
             Order order = new Order();
             order.setId(1L);
             order.setUserId(USER_ID);
-            order.setStatus("RESERVED");
+            order.setStatus(OrderStatus.RESERVED);
             order.setTotalAmount(BigDecimal.TEN);
             order.setTotalCurrency("USD");
             return order;
@@ -257,10 +258,10 @@ class OrderServiceTest {
         void idempotent_sameStatus_noOp() {
             Order order = new Order();
             order.setId(1L);
-            order.setStatus("PAYMENT_SUCCESS");
+            order.setStatus(OrderStatus.PAYMENT_SUCCESS);
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-            orderService.handlePaymentWebhook(1L, "PAYMENT_SUCCESS");
+            orderService.handlePaymentWebhook(1L, OrderStatus.PAYMENT_SUCCESS);
 
             verify(orderRepository, never()).save(any());
         }
@@ -269,11 +270,11 @@ class OrderServiceTest {
         void wrongStatus_throws() {
             Order order = new Order();
             order.setId(1L);
-            order.setStatus("RESERVED");
+            order.setStatus(OrderStatus.RESERVED);
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
             assertThrows(ResponseStatusException.class,
-                    () -> orderService.handlePaymentWebhook(1L, "PAYMENT_SUCCESS"));
+                    () -> orderService.handlePaymentWebhook(1L, OrderStatus.PAYMENT_SUCCESS));
         }
 
         @Test
@@ -281,14 +282,14 @@ class OrderServiceTest {
             Order order = new Order();
             order.setId(1L);
             order.setUserId(USER_ID);
-            order.setStatus("PAYMENT_INITIATED");
+            order.setStatus(OrderStatus.PAYMENT_INITIATED);
             order.setTotalAmount(BigDecimal.TEN);
             order.setTotalCurrency("USD");
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-            orderService.handlePaymentWebhook(1L, "PAYMENT_SUCCESS");
+            orderService.handlePaymentWebhook(1L, OrderStatus.PAYMENT_SUCCESS);
 
-            assertEquals("PAYMENT_SUCCESS", order.getStatus());
+            assertEquals(OrderStatus.PAYMENT_SUCCESS, order.getStatus());
             // 2 outbox events: status change + payment_completed
             verify(outboxRepository, times(2)).save(any(OutboxEvent.class));
         }
@@ -297,7 +298,7 @@ class OrderServiceTest {
         void orderNotFound_throws() {
             when(orderRepository.findById(99L)).thenReturn(Optional.empty());
             assertThrows(ResponseStatusException.class,
-                    () -> orderService.handlePaymentWebhook(99L, "PAYMENT_SUCCESS"));
+                    () -> orderService.handlePaymentWebhook(99L, OrderStatus.PAYMENT_SUCCESS));
         }
     }
 
@@ -308,10 +309,10 @@ class OrderServiceTest {
         void idempotent_sameStatus_noOp() {
             Order order = new Order();
             order.setId(1L);
-            order.setStatus("COMPLETED");
+            order.setStatus(OrderStatus.COMPLETED);
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-            orderService.handleOrderCompleteWebhook(1L, "COMPLETED");
+            orderService.handleOrderCompleteWebhook(1L, OrderStatus.COMPLETED);
             verify(orderRepository, never()).save(any());
         }
 
@@ -319,11 +320,11 @@ class OrderServiceTest {
         void wrongStatus_throws() {
             Order order = new Order();
             order.setId(1L);
-            order.setStatus("RESERVED");
+            order.setStatus(OrderStatus.RESERVED);
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
             assertThrows(ResponseStatusException.class,
-                    () -> orderService.handleOrderCompleteWebhook(1L, "COMPLETED"));
+                    () -> orderService.handleOrderCompleteWebhook(1L, OrderStatus.COMPLETED));
         }
 
         @Test
@@ -331,14 +332,14 @@ class OrderServiceTest {
             Order order = new Order();
             order.setId(1L);
             order.setUserId(USER_ID);
-            order.setStatus("PAYMENT_SUCCESS");
+            order.setStatus(OrderStatus.PAYMENT_SUCCESS);
             order.setTotalAmount(BigDecimal.TEN);
             order.setTotalCurrency("USD");
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-            orderService.handleOrderCompleteWebhook(1L, "FAILED");
+            orderService.handleOrderCompleteWebhook(1L, OrderStatus.FAILED);
 
-            assertEquals("FAILED", order.getStatus());
+            assertEquals(OrderStatus.FAILED, order.getStatus());
             // 2 outbox events: status change + refund
             ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
             verify(outboxRepository, times(2)).save(captor.capture());
@@ -353,14 +354,14 @@ class OrderServiceTest {
             Order order = new Order();
             order.setId(1L);
             order.setUserId(USER_ID);
-            order.setStatus("PAYMENT_SUCCESS");
+            order.setStatus(OrderStatus.PAYMENT_SUCCESS);
             order.setTotalAmount(BigDecimal.TEN);
             order.setTotalCurrency("USD");
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-            orderService.handleOrderCompleteWebhook(1L, "COMPLETED");
+            orderService.handleOrderCompleteWebhook(1L, OrderStatus.COMPLETED);
 
-            assertEquals("COMPLETED", order.getStatus());
+            assertEquals(OrderStatus.COMPLETED, order.getStatus());
             // Only 1 outbox event: status change (no refund)
             verify(outboxRepository, times(1)).save(any(OutboxEvent.class));
         }

@@ -1,7 +1,10 @@
 package com.causal.order.controller;
 
+import com.causal.order.config.InternalApiKeyFilter;
 import com.causal.order.config.SecurityConfig;
 import com.causal.order.dto.response.*;
+import com.causal.order.model.DeliveryStatus;
+import com.causal.order.model.OrderStatus;
 import com.causal.order.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(OrderController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, InternalApiKeyFilter.class})
 class OrderControllerTest {
 
     @Autowired
@@ -70,8 +73,8 @@ class OrderControllerTest {
     @Test
     void getOrder_found_returns200() throws Exception {
         PriceResponse total = new PriceResponse("USD", BigDecimal.valueOf(95));
-        OrderShowResponse order = new OrderShowResponse(1L, "RESERVED", total, null, null,
-                List.of(new OrderItemShowResponse(1L, 100L, 2, "Widget", "A widget", "PENDING",
+        OrderShowResponse order = new OrderShowResponse(1L, OrderStatus.RESERVED, total, null, null,
+                List.of(new OrderItemShowResponse(1L, 100L, 2, "Widget", "A widget", DeliveryStatus.PENDING,
                         new PriceResponse("USD", BigDecimal.TEN))));
         when(orderService.getOrder(1L)).thenReturn(order);
 
@@ -95,7 +98,7 @@ class OrderControllerTest {
     @Test
     void getOrderStatus_returns200() throws Exception {
         when(orderService.getOrderStatus(1L))
-                .thenReturn(new OrderStatusResponse(1L, "PAYMENT_INITIATED"));
+                .thenReturn(new OrderStatusResponse(1L, OrderStatus.PAYMENT_INITIATED));
 
         mockMvc.perform(get("/orders/1/status").with(jwt()))
                 .andExpect(status().isOk())
@@ -104,7 +107,7 @@ class OrderControllerTest {
 
     @Test
     void checkout_authenticated_returns200() throws Exception {
-        OrderShowResponse order = new OrderShowResponse(1L, "RESERVED", null, null, null, List.of());
+        OrderShowResponse order = new OrderShowResponse(1L, OrderStatus.RESERVED, null, null, null, List.of());
         when(orderService.checkout()).thenReturn(order);
 
         mockMvc.perform(post("/orders/checkout").with(jwt()))
@@ -158,30 +161,49 @@ class OrderControllerTest {
     }
 
     @Test
-    void paymentWebhook_permitAll_returns200() throws Exception {
-        String body = """
-                {"orderId": 1, "status": "PAYMENT_SUCCESS"}
-                """;
-
-        mockMvc.perform(post("/orders/payment/webhook")
+    void paymentWebhook_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(post("/internal/orders/payment/webhook")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isOk());
-
-        verify(orderService).handlePaymentWebhook(1L, "PAYMENT_SUCCESS");
+                        .content("""
+                                {"orderId": 1, "status": "PAYMENT_SUCCESS"}
+                                """))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void completeWebhook_permitAll_returns200() throws Exception {
-        String body = """
-                {"orderId": 1, "status": "COMPLETED"}
-                """;
-
-        mockMvc.perform(post("/orders/complete/webhook")
+    void paymentWebhook_withJwt_returns403() throws Exception {
+        mockMvc.perform(post("/internal/orders/payment/webhook")
+                        .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+                        .content("""
+                                {"orderId": 1, "status": "PAYMENT_SUCCESS"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void paymentWebhook_withApiKey_returns200() throws Exception {
+        mockMvc.perform(post("/internal/orders/payment/webhook")
+                        .with(SecurityMockMvcRequestPostProcessors.user("internal-service").roles("INTERNAL"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"orderId": 1, "status": "PAYMENT_SUCCESS"}
+                                """))
                 .andExpect(status().isOk());
 
-        verify(orderService).handleOrderCompleteWebhook(1L, "COMPLETED");
+        verify(orderService).handlePaymentWebhook(1L, OrderStatus.PAYMENT_SUCCESS);
+    }
+
+    @Test
+    void completeWebhook_withApiKey_returns200() throws Exception {
+        mockMvc.perform(post("/internal/orders/complete/webhook")
+                        .with(SecurityMockMvcRequestPostProcessors.user("internal-service").roles("INTERNAL"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"orderId": 1, "status": "COMPLETED"}
+                                """))
+                .andExpect(status().isOk());
+
+        verify(orderService).handleOrderCompleteWebhook(1L, OrderStatus.COMPLETED);
     }
 }

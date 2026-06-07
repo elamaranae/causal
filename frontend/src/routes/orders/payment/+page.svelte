@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { apiFetch, urls } from '$lib/api';
+  import { OrderStatus } from '$lib/types';
   import type { Order, Address, Profile } from '$lib/types';
   import Button from '$lib/components/Button.svelte';
   import Input from '$lib/components/Input.svelte';
@@ -193,14 +194,14 @@
 
   function startPolling() {
     polling = true;
-    orderStatus = 'PAYMENT_INITIATED';
+    orderStatus = OrderStatus.PAYMENT_INITIATED;
     pollTimer = setInterval(async () => {
       try {
         const res = await apiFetch(urls.orders.status(order.id));
         if (!res.ok) return;
         const data: { id: number; status: string } = await res.json();
         orderStatus = data.status;
-        if (data.status !== 'PAYMENT_INITIATED') {
+        if (data.status !== OrderStatus.PAYMENT_INITIATED) {
           stopPolling();
         }
       } catch {
@@ -256,8 +257,8 @@
     }
   }
 
-  let isTerminal = $derived(orderStatus !== null && orderStatus !== 'PAYMENT_INITIATED');
-  let isSuccess = $derived(orderStatus === 'PAYMENT_SUCCESS');
+  let isTerminal = $derived(orderStatus !== null && orderStatus !== OrderStatus.PAYMENT_INITIATED);
+  let isSuccess = $derived(orderStatus === OrderStatus.PAYMENT_SUCCESS);
   let isFailed = $derived(isTerminal && !isSuccess);
 </script>
 

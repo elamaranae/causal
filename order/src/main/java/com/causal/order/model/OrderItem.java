@@ -29,7 +29,8 @@ public class OrderItem {
     @Column(nullable = false)
     private Integer quantity = 1;
 
-    private String deliveryStatus = "PENDING";
+    @Enumerated(EnumType.STRING)
+    private DeliveryStatus deliveryStatus = DeliveryStatus.PENDING;
     private BigDecimal purchaseAmount;
     private String purchaseCurrency;
     private String skuName;

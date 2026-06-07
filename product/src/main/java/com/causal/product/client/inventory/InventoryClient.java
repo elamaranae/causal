@@ -12,7 +12,7 @@ import org.springframework.web.service.annotation.PostExchange;
 
 import java.util.List;
 
-@HttpExchange("/inventory")
+@HttpExchange("/internal/inventory")
 public interface InventoryClient {
 
     @GetExchange("/stocks/{skuId}")

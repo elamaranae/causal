@@ -127,6 +127,23 @@ export interface Address {
   phoneNumber: string | null;
 }
 
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  PENDING_RESERVATION = 'PENDING_RESERVATION',
+  RESERVED = 'RESERVED',
+  PAYMENT_INITIATED = 'PAYMENT_INITIATED',
+  PAYMENT_SUCCESS = 'PAYMENT_SUCCESS',
+  PAYMENT_FAILED = 'PAYMENT_FAILED',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  RESERVATION_FAILED = 'RESERVATION_FAILED',
+  RESERVATION_EXPIRED = 'RESERVATION_EXPIRED',
+}
+
+export enum DeliveryStatus {
+  PENDING = 'PENDING',
+}
+
 export interface OrderAddress {
   id: number;
   label: string | null;
@@ -145,13 +162,13 @@ export interface OrderItem {
   quantity: number;
   skuName: string;
   skuDescription: string;
-  deliveryStatus: string;
+  deliveryStatus: DeliveryStatus;
   price: Price;
 }
 
 export interface Order {
   id: number;
-  status: string;
+  status: OrderStatus;
   total: Price;
   shippingAddress: OrderAddress | null;
   billingAddress: OrderAddress | null;

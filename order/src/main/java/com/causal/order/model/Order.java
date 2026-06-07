@@ -23,8 +23,9 @@ public class Order {
 
     private Long userId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "PENDING";
+    private OrderStatus status = OrderStatus.PENDING;
 
     private String idempotencyKey;
     private BigDecimal totalAmount;

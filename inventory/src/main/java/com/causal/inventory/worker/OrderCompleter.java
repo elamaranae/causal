@@ -2,6 +2,7 @@ package com.causal.inventory.worker;
 
 import com.causal.inventory.client.order.OrderGateway;
 import com.causal.inventory.config.RabbitMQConfig;
+import com.causal.inventory.model.OrderStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -32,7 +33,7 @@ public class OrderCompleter {
             Long orderId = data.get("orderId").asLong();
             String status = data.get("status").asText();
 
-            String orderStatus = "order_success".equals(status) ? "COMPLETED" : "FAILED";
+            OrderStatus orderStatus = "order_success".equals(status) ? OrderStatus.COMPLETED : OrderStatus.FAILED;
 
             log.info("Completing order {} with status {}", orderId, orderStatus);
             orderGateway.completeOrder(orderId, orderStatus);
