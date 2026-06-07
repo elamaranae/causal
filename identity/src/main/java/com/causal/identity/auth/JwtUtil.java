@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -41,6 +42,15 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
+    private RSAPublicKey publicKey;
+    private RSAPrivateKey privateKey;
+
+    @PostConstruct
+    void loadKeys() {
+        this.publicKey = parsePublicKey();
+        this.privateKey = parsePrivateKey();
+    }
+
     public String extractUsername(String token) {
         return (String) parseClaims(token).getClaim("email");
     }
@@ -52,7 +62,7 @@ public class JwtUtil {
     private JWTClaimsSet parseClaims(String token) {
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
-            JWSVerifier verifier = new RSASSAVerifier(getPublicKey());
+            JWSVerifier verifier = new RSASSAVerifier(publicKey);
             if (!signedJWT.verify(verifier)) {
                 throw new RuntimeException("Invalid JWT signature");
             }
@@ -63,6 +73,10 @@ public class JwtUtil {
     }
 
     public RSAPublicKey getPublicKey() {
+        return publicKey;
+    }
+
+    private RSAPublicKey parsePublicKey() {
         try {
             String pem = Files.readString(Paths.get(publicKeyPath));
             String base64 = pem
@@ -78,7 +92,7 @@ public class JwtUtil {
         }
     }
 
-    private RSAPrivateKey getPrivateKey() {
+    private RSAPrivateKey parsePrivateKey() {
         try {
             String pem = Files.readString(Paths.get(privateKeyPath));
             String base64 = pem
@@ -95,7 +109,7 @@ public class JwtUtil {
     }
 
     public RSAKey getJWK() {
-        return new RSAKey.Builder(getPublicKey())
+        return new RSAKey.Builder(publicKey)
                 .keyID(KEY_ID)
                 .algorithm(JWSAlgorithm.RS256)
                 .build();
@@ -103,7 +117,7 @@ public class JwtUtil {
 
     public String generateToken(User user) {
         try {
-            JWSSigner signer = new RSASSASigner(getPrivateKey());
+            JWSSigner signer = new RSASSASigner(privateKey);
 
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                     .subject(user.getId().toString())

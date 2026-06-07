@@ -1,12 +1,13 @@
 package com.causal.order.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public record PaymentMethodRequest(
-        @NotBlank String type,
-        @NotBlank String cardNumber,
-        @NotBlank String expiryMonth,
-        @NotBlank String expiryYear,
-        @NotBlank String cvv,
-        @NotBlank String cardholderName
+        @NotBlank @Size(max = 50) String type,
+        @NotBlank @Size(max = 19) String cardNumber,
+        @NotBlank @Size(max = 2) String expiryMonth,
+        @NotBlank @Size(max = 4) String expiryYear,
+        @NotBlank @Size(max = 4) String cvv,
+        @NotBlank @Size(max = 100) String cardholderName
 ) {}

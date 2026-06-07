@@ -5,6 +5,7 @@ import com.causal.identity.user.UserRegistrationDto;
 import com.causal.identity.user.UserRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -53,7 +54,7 @@ public class AuthController {
     }
 
     @PostMapping("/auth/register")
-    public ResponseEntity<?> registerUser(@RequestBody UserRegistrationDto registrationDto, HttpServletResponse response) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegistrationDto registrationDto, HttpServletResponse response) {
         if (userRepository.findByEmail(registrationDto.email()).isPresent()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Email is already in use"));
         }
@@ -73,7 +74,7 @@ public class AuthController {
     }
 
     @PostMapping("/auth/login")
-    public ResponseEntity<?> loginUser(@RequestBody LoginRequest loginRequest, HttpServletResponse response) {
+    public ResponseEntity<?> loginUser(@Valid @RequestBody LoginRequest loginRequest, HttpServletResponse response) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.email(), loginRequest.password())
         );

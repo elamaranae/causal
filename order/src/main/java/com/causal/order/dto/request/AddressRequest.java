@@ -1,14 +1,15 @@
 package com.causal.order.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public record AddressRequest(
-        String label,
-        @NotBlank String line1,
-        String line2,
-        @NotBlank String city,
-        @NotBlank String state,
-        @NotBlank String country,
-        @NotBlank String pincode,
-        String phoneNumber
+        @Size(max = 100) String label,
+        @NotBlank @Size(max = 255) String line1,
+        @Size(max = 255) String line2,
+        @NotBlank @Size(max = 100) String city,
+        @NotBlank @Size(max = 100) String state,
+        @NotBlank @Size(max = 100) String country,
+        @NotBlank @Size(max = 20) String pincode,
+        @Size(max = 50) String phoneNumber
 ) {}

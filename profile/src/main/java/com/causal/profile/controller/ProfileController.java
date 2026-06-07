@@ -21,11 +21,6 @@ public class ProfileController {
         return profileService.getCurrentUserProfile();
     }
 
-    @GetMapping("/internal/profiles/{userId}")
-    public ProfileShowResponse getProfile(@PathVariable Long userId) {
-        return profileService.getProfile(userId);
-    }
-
     @PostMapping("/profiles/me")
     public ProfileShowResponse createProfile(@Validated @RequestBody ProfileCreateRequest request) {
         return profileService.createProfile(request);
