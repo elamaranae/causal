@@ -42,6 +42,30 @@ export async function findInStockSkuId(client: ApiClient): Promise<number> {
   return (await findInStockSkuIds(client, 1))[0];
 }
 
+export interface SkuWithStock {
+  skuId: number;
+  stockQuantity: number;
+}
+
+/** Returns a SKU ID and its stock quantity from a trending product. */
+export async function findInStockSkuWithStock(
+  client: ApiClient,
+  minStock = 1,
+): Promise<SkuWithStock> {
+  const res = await client.get('/products/trending');
+  const products = (await res.json()) as TrendingProduct[];
+
+  for (const product of products) {
+    if (!product.inStock) continue;
+    const detailRes = await client.get(`/products/${product.id}`);
+    const detail = (await detailRes.json()) as ProductDetail;
+    const sku = detail.skus.find((s) => s.stockQuantity >= minStock);
+    if (sku) return { skuId: sku.id, stockQuantity: sku.stockQuantity };
+  }
+
+  throw new Error(`No trending SKU with stock >= ${minStock} found`);
+}
+
 /** Returns a trending product ID and the variant attributes of an in-stock SKU. */
 export async function findInStockProduct(client: ApiClient): Promise<InStockProduct> {
   const res = await client.get('/products/trending');
