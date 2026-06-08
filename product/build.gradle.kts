@@ -34,6 +34,7 @@ dependencies {
         developmentOnly("org.springframework.boot:spring-boot-devtools")
 
 
+	implementation("org.springframework.boot:spring-boot-starter-data-redis")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.boot:spring-boot-starter-restclient")
 	implementation("org.springframework.boot:spring-boot-starter-security")
@@ -41,7 +42,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 	implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.16.0-alpha")
 	implementation("io.opentelemetry.instrumentation:opentelemetry-jdbc:2.16.0-alpha")
-        testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
+  testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-security-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -52,6 +53,7 @@ tasks.withType<Test> {
 }
 
 jib {
+    configurationName.set("productionRuntimeClasspath")
     from {
         image = "eclipse-temurin:25-jre"
         platforms {

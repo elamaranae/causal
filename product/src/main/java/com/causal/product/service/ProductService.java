@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,7 @@ public class ProductService {
     this.skuService = skuService;
   }
 
+  @Cacheable(value = "product", key = "#id")
   public ProductShowResponse getProduct(Long id) {
     Product product = productRepository.findWithSkusById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
@@ -40,6 +42,7 @@ public class ProductService {
     return mapper.productShowResponseFrom(product);
   }
 
+  @Cacheable(value = "trending")
   public List<ProductListingResponse> getTrendingProducts() {
     List<Product> products = productRepository.findFirst5ByOrderByIdAsc();
     skuService.attachPricesToSkus(products.stream().map(Product::getDefaultSku).toList());

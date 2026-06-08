@@ -6,6 +6,8 @@ services:
     depends_on:
       causal-product-db:
         condition: service_healthy
+      causal-product-redis:
+        condition: service_healthy
     networks:
       causal-net:
         ipv4_address: 172.20.0.20
@@ -26,6 +28,18 @@ services:
     networks:
       causal-net:
         ipv4_address: 172.20.0.21
+
+  causal-product-redis:
+    image: redis:7-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      causal-net:
+        ipv4_address: 172.20.0.22
 
 networks:
   causal-net:

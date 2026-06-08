@@ -2,6 +2,7 @@ package com.causal.product.service;
 
 import java.util.List;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.causal.product.dto.response.ProductCategoryListingResponse;
@@ -19,6 +20,7 @@ public class ProductCategoryService {
     this.mapper = mapper;
   }
 
+  @Cacheable(value = "categories")
   public List<ProductCategoryListingResponse> getAll() {
     List<ProductCategory> categories = repository.findAll();
     return categories.stream().map(mapper::from).toList();

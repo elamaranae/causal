@@ -1,5 +1,6 @@
 package com.causal.product.dto.response;
 
+import java.io.Serializable;
 import java.util.Map;
 
 public record SkuResponse(
@@ -9,4 +10,4 @@ public record SkuResponse(
     MediaResponse media,
     PriceResponse price,
     int stockQuantity
-) {};
+) implements Serializable {};

@@ -1,5 +1,6 @@
 package com.causal.product.dto.response;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
@@ -13,4 +14,4 @@ public record ProductShowResponse(
     Map<String, Object> attributes,
     long defaultSkuId,
     List<SkuResponse> skus
-) {};
+) implements Serializable {};
