@@ -1,7 +1,10 @@
 package com.causal.identity.auth;
 
 import com.causal.identity.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +14,8 @@ import java.util.UUID;
 
 @Service
 public class RefreshTokenService {
+
+    private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
 
     @Value("${jwt.refreshExpiration}")
     private Long refreshTokenDurationMs;
@@ -53,6 +58,15 @@ public class RefreshTokenService {
     @Transactional
     public int deleteByUserId(Long userId) {
         return refreshTokenRepository.deleteByUser(userRepository.findById(userId).get());
+    }
+
+    @Scheduled(fixedRateString = "${jwt.cleanup.interval:3600000}")
+    @Transactional
+    public void purgeExpiredTokens() {
+        int deleted = refreshTokenRepository.deleteByExpiryDateBefore(Instant.now());
+        if (deleted > 0) {
+            log.info("Purged {} expired refresh tokens", deleted);
+        }
     }
 
 }
