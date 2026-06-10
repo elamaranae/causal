@@ -38,6 +38,24 @@ export const urls = {
   }
 } as const;
 
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export async function extractErrors(res: Response, fallback: string): Promise<string> {
+  try {
+    const data = await res.json();
+    if (data.errors && Array.isArray(data.errors)) {
+      return (data.errors as ApiError[]).map((e) => e.message).join('. ');
+    }
+    return data.message || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 let refreshPromise: Promise<boolean> | null = null;
 
 export async function apiFetch(

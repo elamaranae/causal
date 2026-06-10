@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
-  import { apiFetch, urls } from '$lib/api';
+  import { apiFetch, urls, extractErrors } from '$lib/api';
   import { OrderStatus } from '$lib/types';
   import type { Order, Address, Profile } from '$lib/types';
   import Button from '$lib/components/Button.svelte';
@@ -247,8 +247,7 @@
       if (res.ok) {
         startPolling();
       } else {
-        const data = await res.json();
-        error = data.message || 'Payment failed';
+        error = await extractErrors(res, 'Payment failed');
       }
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Something went wrong';

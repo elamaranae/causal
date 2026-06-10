@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { auth } from '$lib/auth.svelte';
-  import { apiFetch, urls } from '$lib/api';
+  import { apiFetch, urls, extractErrors } from '$lib/api';
   import type { Profile, Address, Order, OrderListResponse } from '$lib/types';
   import Button from '$lib/components/Button.svelte';
   import Input from '$lib/components/Input.svelte';
@@ -120,8 +120,7 @@
         editingProfile = false;
         syncProfileForm();
       } else {
-        const data = await res.json();
-        profileError = data.message || 'Failed to save profile';
+        profileError = await extractErrors(res, 'Failed to save profile');
       }
     } catch (err: unknown) {
       profileError = err instanceof Error ? err.message : 'Something went wrong';
@@ -208,8 +207,7 @@
         closeAddressForm();
         await loadAddresses();
       } else {
-        const data = await res.json();
-        addressError = data.message || 'Failed to save address';
+        addressError = await extractErrors(res, 'Failed to save address');
       }
     } catch (err: unknown) {
       addressError = err instanceof Error ? err.message : 'Something went wrong';

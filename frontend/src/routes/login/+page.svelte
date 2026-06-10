@@ -2,7 +2,7 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { auth } from '$lib/auth.svelte';
   import { cart } from '$lib/cart.svelte';
-  import { urls, apiFetch } from '$lib/api';
+  import { urls, apiFetch, extractErrors } from '$lib/api';
   import Button from '$lib/components/Button.svelte';
   import Input from '$lib/components/Input.svelte';
   import Logo from '$lib/components/Logo.svelte';
@@ -24,8 +24,7 @@
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Login failed');
+        throw new Error(await extractErrors(response, 'Login failed'));
       }
 
       await auth.onLoginSuccess();
