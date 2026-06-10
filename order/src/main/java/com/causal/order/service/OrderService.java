@@ -86,12 +86,14 @@ public class OrderService {
     }
 
     public OrderStatusResponse getOrderStatus(Long id) {
-        return orderRepository.findStatusById(id)
+        Long userId = currentUser.id();
+        return orderRepository.findStatusByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
     }
 
     public OrderShowResponse getOrder(Long id) {
-        return orderRepository.findDetailById(id)
+        Long userId = currentUser.id();
+        return orderRepository.findDetailByIdAndUserId(id, userId)
                 .map(orderMapper::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
     }
@@ -121,7 +123,8 @@ public class OrderService {
 
     @Transactional
     public void pay(Long id, PaymentRequest request) {
-        Order order = orderRepository.findDetailById(id)
+        Long userId = currentUser.id();
+        Order order = orderRepository.findDetailByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
         if (order.getStatus() != OrderStatus.RESERVED) {

@@ -195,12 +195,17 @@ class OrderServiceTest {
     @Nested
     class Pay {
 
+        @BeforeEach
+        void setUp() {
+            lenient().when(currentUser.id()).thenReturn(USER_ID);
+        }
+
         @Test
         void notReserved_throws() {
             Order order = new Order();
             order.setId(1L);
             order.setStatus(OrderStatus.PENDING);
-            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
+            when(orderRepository.findDetailByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(order));
 
             PaymentRequest request = makePaymentRequest();
             ResponseStatusException ex = assertThrows(ResponseStatusException.class,
@@ -211,7 +216,7 @@ class OrderServiceTest {
         @Test
         void reservationExpired_setsStatusAndThrows() {
             Order order = makeReservedOrder();
-            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
+            when(orderRepository.findDetailByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(order));
             doThrow(new RuntimeException("expired"))
                     .when(inventoryGateway).extendReservation(any(), any(), anyList());
 
@@ -225,7 +230,7 @@ class OrderServiceTest {
         @Test
         void happyPath_setsPaymentInitiated() throws Exception {
             Order order = makeReservedOrder();
-            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
+            when(orderRepository.findDetailByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(order));
             when(inventoryGateway.extendReservation(any(), any(), anyList()))
                     .thenReturn(new ReservationResponse(1L, List.of()));
             when(orderMapper.from(any(AddressRequest.class))).thenReturn(new OrderAddress());
