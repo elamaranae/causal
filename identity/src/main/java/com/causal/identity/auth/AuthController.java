@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.security.SecureRandom;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -56,7 +57,10 @@ public class AuthController {
     @PostMapping("/auth/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegistrationDto registrationDto, HttpServletResponse response) {
         if (userRepository.findByEmail(registrationDto.email()).isPresent()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Email is already in use"));
+            return ResponseEntity.badRequest().body(Map.of("errors", List.of(Map.of(
+                    "code", "duplicate_email",
+                    "message", "Email is already in use"
+            ))));
         }
 
         User user = new User();
@@ -103,7 +107,10 @@ public class AuthController {
             requestRefreshToken = body.get("refreshToken");
         }
         if (requestRefreshToken == null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Refresh token is required"));
+            return ResponseEntity.badRequest().body(Map.of("errors", List.of(Map.of(
+                    "code", "invalid_request",
+                    "message", "Refresh token is required"
+            ))));
         }
 
         return refreshTokenService.findByToken(requestRefreshToken)

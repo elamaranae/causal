@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -50,6 +51,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception ex) {
+        if (ex instanceof ErrorResponse errorResponse) {
+            return ResponseEntity.status(errorResponse.getStatusCode())
+                    .body(Map.of("errors", List.of(Map.of(
+                            "code", "invalid_request",
+                            "message", errorResponse.getBody().getDetail() != null
+                                    ? errorResponse.getBody().getDetail() : "Bad request"
+                    ))));
+        }
         log.error("Unhandled exception", ex);
         return ResponseEntity.internalServerError()
                 .body(Map.of("errors", List.of(Map.of(

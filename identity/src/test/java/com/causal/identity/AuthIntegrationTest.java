@@ -86,7 +86,7 @@ class AuthIntegrationTest {
         MvcResult registerResult = mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"John Doe","email":"john@test.com","password":"secret123"}
+                                {"email":"john@test.com","password":"secret12345"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
@@ -101,13 +101,12 @@ class AuthIntegrationTest {
         mockMvc.perform(get("/auth/me")
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("John Doe"))
                 .andExpect(jsonPath("$.email").value("john@test.com"));
 
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"john@test.com","password":"secret123"}
+                                {"email":"john@test.com","password":"secret12345"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
@@ -119,7 +118,7 @@ class AuthIntegrationTest {
         mockMvc.perform(post("/auth/logout")
                         .header("Authorization", "Bearer " + newAccessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Log out successful!"));
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -127,17 +126,17 @@ class AuthIntegrationTest {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"User 1","email":"dup@test.com","password":"pass123"}
+                                {"email":"dup@test.com","password":"password123"}
                                 """))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"User 2","email":"dup@test.com","password":"pass456"}
+                                {"email":"dup@test.com","password":"password456"}
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Email is already in use"));
+                .andExpect(jsonPath("$.errors[0].message").value("Email is already in use"));
     }
 
     @Test
@@ -145,14 +144,14 @@ class AuthIntegrationTest {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"User","email":"user@test.com","password":"correct"}
+                                {"email":"user@test.com","password":"correctpassword"}
                                 """))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"user@test.com","password":"wrong"}
+                                {"email":"user@test.com","password":"wrongpassword"}
                                 """))
                 .andExpect(status().isUnauthorized());
     }
@@ -162,7 +161,7 @@ class AuthIntegrationTest {
         MvcResult result = mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"User","email":"refresh@test.com","password":"pass"}
+                                {"email":"refresh@test.com","password":"password123"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();

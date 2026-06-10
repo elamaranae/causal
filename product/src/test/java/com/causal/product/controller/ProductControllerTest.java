@@ -1,5 +1,6 @@
 package com.causal.product.controller;
 
+import com.causal.product.config.GlobalExceptionHandler;
 import com.causal.product.config.SecurityConfig;
 import com.causal.product.dto.response.ProductListingResponse;
 import com.causal.product.dto.response.ProductShowResponse;
@@ -27,7 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest({ProductController.class, SkuController.class})
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, GlobalExceptionHandler.class})
 class ProductControllerTest {
 
     @Autowired

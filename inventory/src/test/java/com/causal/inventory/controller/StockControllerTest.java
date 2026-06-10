@@ -45,9 +45,9 @@ class StockControllerTest {
     }
 
     @Test
-    void getStock_unauthenticated_returns401() throws Exception {
+    void getStock_unauthenticated_returns403() throws Exception {
         mockMvc.perform(get("/internal/inventory/stocks/100"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test

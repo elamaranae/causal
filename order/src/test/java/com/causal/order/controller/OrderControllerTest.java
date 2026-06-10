@@ -161,13 +161,13 @@ class OrderControllerTest {
     }
 
     @Test
-    void paymentWebhook_unauthenticated_returns401() throws Exception {
+    void paymentWebhook_unauthenticated_returns403() throws Exception {
         mockMvc.perform(post("/internal/orders/payment/webhook")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"orderId": 1, "status": "PAYMENT_SUCCESS"}
                                 """))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test

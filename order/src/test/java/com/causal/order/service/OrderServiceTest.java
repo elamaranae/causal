@@ -259,7 +259,7 @@ class OrderServiceTest {
             Order order = new Order();
             order.setId(1L);
             order.setStatus(OrderStatus.PAYMENT_SUCCESS);
-            when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
 
             orderService.handlePaymentWebhook(1L, OrderStatus.PAYMENT_SUCCESS);
 
@@ -271,7 +271,7 @@ class OrderServiceTest {
             Order order = new Order();
             order.setId(1L);
             order.setStatus(OrderStatus.RESERVED);
-            when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
 
             assertThrows(ResponseStatusException.class,
                     () -> orderService.handlePaymentWebhook(1L, OrderStatus.PAYMENT_SUCCESS));
@@ -285,7 +285,8 @@ class OrderServiceTest {
             order.setStatus(OrderStatus.PAYMENT_INITIATED);
             order.setTotalAmount(BigDecimal.TEN);
             order.setTotalCurrency("USD");
-            when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+            order.setItems(List.of());
+            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
 
             orderService.handlePaymentWebhook(1L, OrderStatus.PAYMENT_SUCCESS);
 
@@ -296,7 +297,7 @@ class OrderServiceTest {
 
         @Test
         void orderNotFound_throws() {
-            when(orderRepository.findById(99L)).thenReturn(Optional.empty());
+            when(orderRepository.findDetailById(99L)).thenReturn(Optional.empty());
             assertThrows(ResponseStatusException.class,
                     () -> orderService.handlePaymentWebhook(99L, OrderStatus.PAYMENT_SUCCESS));
         }
@@ -310,7 +311,7 @@ class OrderServiceTest {
             Order order = new Order();
             order.setId(1L);
             order.setStatus(OrderStatus.COMPLETED);
-            when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
 
             orderService.handleOrderCompleteWebhook(1L, OrderStatus.COMPLETED);
             verify(orderRepository, never()).save(any());
@@ -321,7 +322,7 @@ class OrderServiceTest {
             Order order = new Order();
             order.setId(1L);
             order.setStatus(OrderStatus.RESERVED);
-            when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
 
             assertThrows(ResponseStatusException.class,
                     () -> orderService.handleOrderCompleteWebhook(1L, OrderStatus.COMPLETED));
@@ -335,7 +336,7 @@ class OrderServiceTest {
             order.setStatus(OrderStatus.PAYMENT_SUCCESS);
             order.setTotalAmount(BigDecimal.TEN);
             order.setTotalCurrency("USD");
-            when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
 
             orderService.handleOrderCompleteWebhook(1L, OrderStatus.FAILED);
 
@@ -357,7 +358,7 @@ class OrderServiceTest {
             order.setStatus(OrderStatus.PAYMENT_SUCCESS);
             order.setTotalAmount(BigDecimal.TEN);
             order.setTotalCurrency("USD");
-            when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+            when(orderRepository.findDetailById(1L)).thenReturn(Optional.of(order));
 
             orderService.handleOrderCompleteWebhook(1L, OrderStatus.COMPLETED);
 

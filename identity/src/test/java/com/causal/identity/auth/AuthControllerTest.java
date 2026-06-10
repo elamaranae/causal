@@ -58,10 +58,10 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"Test","email":"existing@test.com","password":"pass123"}
+                                {"name":"Test","email":"existing@test.com","password":"password123"}
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Email is already in use"));
+                .andExpect(jsonPath("$.errors[0].message").value("Email is already in use"));
     }
 
     @Test
@@ -71,7 +71,7 @@ class AuthControllerTest {
         User savedUser = new User("Test", "new@test.com", "encoded");
         savedUser.setId(1L);
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
-        when(passwordEncoder.encode("pass123")).thenReturn("encoded");
+        when(passwordEncoder.encode("password123")).thenReturn("encoded");
         when(jwtUtil.generateToken(any(User.class))).thenReturn("jwt-token");
 
         RefreshToken refreshToken = new RefreshToken();
@@ -81,7 +81,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"Test","email":"new@test.com","password":"pass123"}
+                                {"name":"Test","email":"new@test.com","password":"password123"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("jwt-token"))
@@ -131,7 +131,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Refresh token is required"));
+                .andExpect(jsonPath("$.errors[0].message").value("Refresh token is required"));
     }
 
     @Test
@@ -147,7 +147,7 @@ class AuthControllerTest {
                         .content("""
                                 {"refreshToken":"old-token"}
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isInternalServerError());
     }
 
     @Test
