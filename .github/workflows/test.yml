@@ -85,7 +85,7 @@ jobs:
           sed -i 's/^[[:space:]]*//' .env
 
       - name: Start services
-        run: docker compose up -d --wait --wait-timeout 120
+        run: docker compose up -d --wait --wait-timeout 300
 
       - name: Seed databases
         run: |
