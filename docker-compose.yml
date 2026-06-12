@@ -38,6 +38,7 @@ services:
     image: caddy:latest
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frontend/build:/srv/frontend:ro
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://o11y-otel-collector:4318
       - OTEL_SERVICE_NAME=causal-gateway

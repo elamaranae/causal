@@ -4,6 +4,7 @@
   }
 
   header X-Trace-Id "{http.vars.trace_id}"
+  header Vary "Accept"
 
   header Access-Control-Allow-Origin "{header.Origin}"
   header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
@@ -62,6 +63,8 @@
   }
 
   handle {
-    reverse_proxy host.docker.internal:5173
+    root * /srv/frontend
+    try_files {path} /index.html
+    file_server
   }
 }
