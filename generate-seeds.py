@@ -311,6 +311,8 @@ BEGIN
         END LOOP;
     END LOOP;
 
+    UPDATE stocks SET available_count = quantity;
+
     RAISE NOTICE 'Inventory seed complete: % stock records created', {total_skus};
 END $$;
 
