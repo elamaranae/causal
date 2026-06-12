@@ -1,4 +1,4 @@
-# Causal
+[![test](https://github.com/elamaranae/causal/actions/workflows/test.yml/badge.svg)](https://github.com/elamaranae/causal/actions/workflows/test.yml)
 
 E-commerce microservices project. Built to learn how distributed systems
 actually work: checkout flows, inventory reservations, outbox/CDC patterns,
