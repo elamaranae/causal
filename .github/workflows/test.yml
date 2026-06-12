@@ -59,7 +59,7 @@ jobs:
           done
 
       - name: Pull Docker images
-        run: docker compose pull
+        run: docker compose pull --ignore-buildable --ignore-pull-failures
 
       - name: Build frontend
         working-directory: frontend
