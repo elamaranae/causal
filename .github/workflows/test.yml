@@ -64,13 +64,17 @@ jobs:
           openssl genrsa -out keys/private.pem 2048
           openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
+      - name: Create .env
+        run: |
+          cat <<'EOF' > .env
+          DB_PASSWORD=password
+          RABBITMQ_USERNAME=guest
+          RABBITMQ_PASSWORD=guest
+          INTERNAL_API_KEY=ci-internal-key
+          PAYMENT_ENCRYPTION_KEY=dGVzdC1lbmNyeXB0aW9uLWtleS1mb3ItZGV2LTEyMzQ=
+          EOF
+
       - name: Start services
-        env:
-          DB_PASSWORD: password
-          RABBITMQ_USERNAME: guest
-          RABBITMQ_PASSWORD: guest
-          INTERNAL_API_KEY: ci-internal-key
-          PAYMENT_ENCRYPTION_KEY: dGVzdC1lbmNyeXB0aW9uLWtleS1mb3ItZGV2LTEyMzQ=
         run: docker compose up -d --wait --wait-timeout 120
 
       - name: Install Playwright
