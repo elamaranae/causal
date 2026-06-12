@@ -50,9 +50,6 @@ jobs:
             frontend/package-lock.json
             e2e/package-lock.json
 
-      - name: Pull Docker images
-        run: docker compose pull
-
       - name: Build service images
         run: |
           for service in identity product cart profile inventory order; do
@@ -60,6 +57,9 @@ jobs:
             ./gradlew jibDockerBuild -Djib.from.platforms=linux/amd64
             cd ..
           done
+
+      - name: Pull Docker images
+        run: docker compose pull
 
       - name: Build frontend
         working-directory: frontend
