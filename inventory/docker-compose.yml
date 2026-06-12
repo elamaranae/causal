@@ -65,11 +65,6 @@ services:
       causal-net:
         ipv4_address: 172.20.0.43
 
-networks:
-  causal-net:
-    external: true
-    name: causal_causal-net
-
 volumes:
   causal-inventory-db-data:
   causal-inventory-rabbitmq-data:

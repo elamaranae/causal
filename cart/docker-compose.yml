@@ -29,10 +29,5 @@ services:
       causal-net:
         ipv4_address: 172.20.0.31
 
-networks:
-  causal-net:
-    external: true
-    name: causal_causal-net
-
 volumes:
   causal-cart-db-data:

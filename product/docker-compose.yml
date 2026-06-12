@@ -41,10 +41,5 @@ services:
       causal-net:
         ipv4_address: 172.20.0.22
 
-networks:
-  causal-net:
-    external: true
-    name: causal_causal-net
-
 volumes:
   causal-product-db-data:
