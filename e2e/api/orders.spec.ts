@@ -1,9 +1,9 @@
 import { test, expect } from '../helpers/fixtures';
-import { findInStockSkuId } from '../helpers/products';
+import { createTestProduct } from '../helpers/backoffice';
 import type { ApiClient } from '../helpers/api';
 
-async function setupForCheckout(client: ApiClient) {
-  const skuId = await findInStockSkuId(client);
+async function setupForCheckout(client: ApiClient, adminClient: ApiClient) {
+  const { skuId } = await createTestProduct(adminClient);
   await client.post('/cart/me/items', { skuId, quantity: 1 });
 
   await client.post('/profiles/me', {
@@ -24,8 +24,8 @@ async function setupForCheckout(client: ApiClient) {
 }
 
 test.describe('Orders API', () => {
-  test('full checkout flow', async ({ authedClient }) => {
-    await setupForCheckout(authedClient);
+  test('full checkout flow', async ({ authedClient, adminClient }) => {
+    await setupForCheckout(authedClient, adminClient);
 
     const checkoutRes = await authedClient.post('/orders/checkout');
     expect(checkoutRes.status()).toBe(200);
@@ -36,8 +36,8 @@ test.describe('Orders API', () => {
     expect(order.items.length).toBeGreaterThan(0);
   });
 
-  test('get order by ID', async ({ authedClient }) => {
-    await setupForCheckout(authedClient);
+  test('get order by ID', async ({ authedClient, adminClient }) => {
+    await setupForCheckout(authedClient, adminClient);
     const checkoutRes = await authedClient.post('/orders/checkout');
     const order = await checkoutRes.json();
 
@@ -47,8 +47,8 @@ test.describe('Orders API', () => {
     expect(fetched.id).toBe(order.id);
   });
 
-  test('list orders with pagination', async ({ authedClient }) => {
-    await setupForCheckout(authedClient);
+  test('list orders with pagination', async ({ authedClient, adminClient }) => {
+    await setupForCheckout(authedClient, adminClient);
     await authedClient.post('/orders/checkout');
 
     const res = await authedClient.get('/orders?page=0&size=10');

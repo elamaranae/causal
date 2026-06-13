@@ -3,6 +3,7 @@ package com.causal.product.dto.request;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -22,6 +23,6 @@ public record CreateProductRequest(
         Map<String, Object> variantAttributes,
         @NotNull @Positive BigDecimal price,
         @NotBlank String currency,
-        @NotNull @Positive Integer stock
+        @NotNull @Min(0) Integer stock
     ) {}
 }

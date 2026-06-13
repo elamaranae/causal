@@ -8,8 +8,10 @@ import com.causal.product.model.Price;
 import com.causal.product.model.Product;
 import com.causal.product.model.ProductCategory;
 import com.causal.product.model.Sku;
+import com.causal.product.model.Vendor;
 import com.causal.product.repository.ProductCategoryRepository;
 import com.causal.product.repository.ProductRepository;
+import com.causal.product.repository.VendorRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,16 +25,19 @@ public class BackofficeService {
 
     private final ProductRepository productRepository;
     private final ProductCategoryRepository categoryRepository;
+    private final VendorRepository vendorRepository;
     private final InventoryGateway inventoryGateway;
     private final ProductMapper mapper;
 
     public BackofficeService(
             ProductRepository productRepository,
             ProductCategoryRepository categoryRepository,
+            VendorRepository vendorRepository,
             InventoryGateway inventoryGateway,
             ProductMapper mapper) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
+        this.vendorRepository = vendorRepository;
         this.inventoryGateway = inventoryGateway;
         this.mapper = mapper;
     }
@@ -46,10 +51,18 @@ public class BackofficeService {
                     return categoryRepository.save(c);
                 });
 
+        Vendor vendor = vendorRepository.findFirstByName("Backoffice")
+                .orElseGet(() -> {
+                    Vendor v = new Vendor();
+                    v.setName("Backoffice");
+                    return vendorRepository.save(v);
+                });
+
         Product product = new Product();
         product.setName(request.name());
         product.setDescription(request.description());
         product.setCategoryId(category.getId());
+        product.setVendorId(vendor.getId());
         product.setPrimaryThumbnailUrl(request.primaryThumbnailUrl());
         product.setPrimaryVariantKey(request.primaryVariantKey());
 

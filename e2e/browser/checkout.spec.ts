@@ -1,11 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { ApiClient } from '../helpers/api';
 import { uniqueEmail, PASSWORD, navigateToInStockProduct } from '../helpers/browser';
-import { findInStockProduct } from '../helpers/products';
+import { createAdminClient, createTestProduct } from '../helpers/backoffice';
 
 test.describe('Checkout flow', () => {
   test('full flow: browse, add to cart, setup profile, checkout', async ({ page, request }) => {
     const email = uniqueEmail('checkout');
+
+    // Create a product via backoffice
+    const { client: admin, dispose } = await createAdminClient();
+    const { productId } = await createTestProduct(admin);
+    await dispose();
 
     // Setup profile & address via API (faster than UI)
     const api = new ApiClient(request);
@@ -25,8 +30,7 @@ test.describe('Checkout flow', () => {
       phoneNumber: '555-0123',
     });
 
-    // Find an in-stock product via API
-    const product = await findInStockProduct(api);
+    const product = { productId, variantAttributes: { color: 'Red' } };
 
     // Login in the browser
     await page.goto('/login');

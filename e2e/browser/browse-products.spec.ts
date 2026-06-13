@@ -1,8 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { registerAndLogin } from '../helpers/browser';
+import { createAdminClient, createTestProduct } from '../helpers/backoffice';
 
 test.describe('Browse products', () => {
   test('home page loads trending products', async ({ page }) => {
+    const { client: admin, dispose } = await createAdminClient();
+    await createTestProduct(admin);
+    await dispose();
+
     await registerAndLogin(page);
     await expect(page.getByRole('heading', { name: 'Trending' })).toBeVisible();
     const productLinks = page.locator('a[href^="/products/"]');
@@ -11,6 +16,10 @@ test.describe('Browse products', () => {
   });
 
   test('click category filters products', async ({ page }) => {
+    const { client: admin, dispose } = await createAdminClient();
+    await createTestProduct(admin);
+    await dispose();
+
     await registerAndLogin(page);
 
     const categoryButtons = page.locator('aside nav button');
@@ -25,6 +34,10 @@ test.describe('Browse products', () => {
   });
 
   test('click product card navigates to detail', async ({ page }) => {
+    const { client: admin, dispose } = await createAdminClient();
+    await createTestProduct(admin);
+    await dispose();
+
     await registerAndLogin(page);
     const firstProduct = page.locator('a[href^="/products/"]').first();
     await expect(firstProduct).toBeVisible({ timeout: 10_000 });
@@ -36,6 +49,10 @@ test.describe('Browse products', () => {
   });
 
   test('product detail shows price and add to cart', async ({ page }) => {
+    const { client: admin, dispose } = await createAdminClient();
+    await createTestProduct(admin);
+    await dispose();
+
     await registerAndLogin(page);
     const firstProduct = page.locator('a[href^="/products/"]').first();
     await expect(firstProduct).toBeVisible({ timeout: 10_000 });
@@ -44,7 +61,7 @@ test.describe('Browse products', () => {
 
     await expect(page.locator('article').locator('text=/\\$\\d+\\.\\d{2}/').first()).toBeVisible();
     await expect(
-      page.getByRole('button', { name: /Add to Cart|Out of Stock|Unavailable/ })
+      page.getByRole('button', { name: /Add to Cart|Out of Stock|Unavailable/ }),
     ).toBeVisible();
   });
 });

@@ -37,6 +37,7 @@ public class Product {
   private String description;
   private String primaryThumbnailUrl;
   private long categoryId;
+  private long vendorId;
   private String primaryVariantKey;
 
   @Transient

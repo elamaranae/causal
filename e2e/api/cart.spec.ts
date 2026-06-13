@@ -1,5 +1,5 @@
 import { test, expect } from '../helpers/fixtures';
-import { findInStockSkuId, findInStockSkuIds } from '../helpers/products';
+import { createTestProduct, createTestProducts } from '../helpers/backoffice';
 
 test.describe('Cart API', () => {
   test('empty cart initially', async ({ authedClient }) => {
@@ -10,8 +10,8 @@ test.describe('Cart API', () => {
     expect(cart.items).toHaveLength(0);
   });
 
-  test('add item to cart', async ({ authedClient }) => {
-    const skuId = await findInStockSkuId(authedClient);
+  test('add item to cart', async ({ authedClient, adminClient }) => {
+    const { skuId } = await createTestProduct(adminClient);
 
     const addRes = await authedClient.post('/cart/me/items', { skuId, quantity: 1 });
     expect(addRes.status()).toBe(200);
@@ -23,8 +23,8 @@ test.describe('Cart API', () => {
     expect(cart.items[0].quantity).toBe(1);
   });
 
-  test('update item quantity', async ({ authedClient }) => {
-    const skuId = await findInStockSkuId(authedClient);
+  test('update item quantity', async ({ authedClient, adminClient }) => {
+    const { skuId } = await createTestProduct(adminClient);
     await authedClient.post('/cart/me/items', { skuId, quantity: 1 });
 
     const cartRes = await authedClient.get('/cart/me');
@@ -39,8 +39,8 @@ test.describe('Cart API', () => {
     expect(updatedCart.items[0].quantity).toBe(3);
   });
 
-  test('remove item from cart', async ({ authedClient }) => {
-    const skuId = await findInStockSkuId(authedClient);
+  test('remove item from cart', async ({ authedClient, adminClient }) => {
+    const { skuId } = await createTestProduct(adminClient);
     await authedClient.post('/cart/me/items', { skuId, quantity: 1 });
 
     const cartRes = await authedClient.get('/cart/me');
@@ -55,11 +55,11 @@ test.describe('Cart API', () => {
     expect(emptyCart.items).toHaveLength(0);
   });
 
-  test('add multiple items', async ({ authedClient }) => {
-    const skuIds = await findInStockSkuIds(authedClient, 2);
+  test('add multiple items', async ({ authedClient, adminClient }) => {
+    const products = await createTestProducts(adminClient, 2);
 
-    await authedClient.post('/cart/me/items', { skuId: skuIds[0], quantity: 1 });
-    await authedClient.post('/cart/me/items', { skuId: skuIds[1], quantity: 2 });
+    await authedClient.post('/cart/me/items', { skuId: products[0].skuId, quantity: 1 });
+    await authedClient.post('/cart/me/items', { skuId: products[1].skuId, quantity: 2 });
 
     const cartRes = await authedClient.get('/cart/me');
     const cart = await cartRes.json();

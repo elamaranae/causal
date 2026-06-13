@@ -1,12 +1,26 @@
 import { test, expect } from '@playwright/test';
 import { registerAndLogin, navigateToInStockProduct } from '../helpers/browser';
-import { ApiClient } from '../helpers/api';
-import { findInStockProduct } from '../helpers/products';
+import { createAdminClient, createTestProduct } from '../helpers/backoffice';
+import type { InStockProduct } from '../helpers/products';
+
+async function createProductForBrowser(): Promise<{
+  product: InStockProduct;
+  dispose: () => Promise<void>;
+}> {
+  const { client: admin, dispose } = await createAdminClient();
+  const { productId } = await createTestProduct(admin);
+  return {
+    product: { productId, variantAttributes: { color: 'Red' } },
+    dispose,
+  };
+}
 
 test.describe('Cart flows', () => {
   test('add product to cart from product detail', async ({ page }) => {
+    const { product, dispose } = await createProductForBrowser();
+    await dispose();
+
     await registerAndLogin(page);
-    const product = await findInStockProduct(new ApiClient(page.request));
     await navigateToInStockProduct(page, product);
     await page.getByRole('button', { name: 'Add to Cart' }).click();
 
@@ -18,8 +32,10 @@ test.describe('Cart flows', () => {
   });
 
   test('update quantity in cart drawer', async ({ page }) => {
+    const { product, dispose } = await createProductForBrowser();
+    await dispose();
+
     await registerAndLogin(page);
-    const product = await findInStockProduct(new ApiClient(page.request));
     await navigateToInStockProduct(page, product);
     await page.getByRole('button', { name: 'Add to Cart' }).click();
     await expect(page.locator('header span.rounded-full').first()).toBeVisible({ timeout: 5_000 });
@@ -35,8 +51,10 @@ test.describe('Cart flows', () => {
   });
 
   test('remove item from cart via product detail', async ({ page }) => {
+    const { product, dispose } = await createProductForBrowser();
+    await dispose();
+
     await registerAndLogin(page);
-    const product = await findInStockProduct(new ApiClient(page.request));
     await navigateToInStockProduct(page, product);
     await page.getByRole('button', { name: 'Add to Cart' }).click();
 

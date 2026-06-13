@@ -1,7 +1,10 @@
 import { test, expect } from '../helpers/fixtures';
+import { createTestProduct, createTestProducts } from '../helpers/backoffice';
 
 test.describe('Products API', () => {
-  test('get trending products', async ({ authedClient }) => {
+  test('get trending products', async ({ authedClient, adminClient }) => {
+    await createTestProduct(adminClient);
+
     const res = await authedClient.get('/products/trending');
     expect(res.status()).toBe(200);
     const products = await res.json();
@@ -12,7 +15,9 @@ test.describe('Products API', () => {
     expect(products[0]).toHaveProperty('defaultSku');
   });
 
-  test('get categories', async ({ authedClient }) => {
+  test('get categories', async ({ authedClient, adminClient }) => {
+    await createTestProduct(adminClient);
+
     const res = await authedClient.get('/products/categories');
     expect(res.status()).toBe(200);
     const categories = await res.json();
@@ -22,25 +27,21 @@ test.describe('Products API', () => {
     expect(categories[0]).toHaveProperty('name');
   });
 
-  test('filter products by category', async ({ authedClient }) => {
-    const catRes = await authedClient.get('/products/categories');
-    const categories = await catRes.json() as Array<{ id: number; parentId: number | null }>;
-    // Use a leaf category (has parentId) to avoid issues with parent categories
-    const leafCategory = categories.find((c) => c.parentId !== null);
-    expect(leafCategory).toBeDefined();
-    const categoryId = leafCategory!.id;
+  test('filter products by category', async ({ authedClient, adminClient }) => {
+    const { categoryId } = await createTestProduct(adminClient);
 
-    const res = await authedClient.get(`/products/filter?categoryId=${categoryId}&page=0&size=5`);
+    const res = await authedClient.get(
+      `/products/filter?categoryId=${categoryId}&page=0&size=5`,
+    );
     expect(res.status()).toBe(200);
     const page = await res.json();
     expect(page).toHaveProperty('content');
     expect(page).toHaveProperty('totalElements');
+    expect(page.totalElements).toBeGreaterThan(0);
   });
 
-  test('get single product by ID', async ({ authedClient }) => {
-    const trendingRes = await authedClient.get('/products/trending');
-    const products = await trendingRes.json();
-    const productId = products[0].id;
+  test('get single product by ID', async ({ authedClient, adminClient }) => {
+    const { productId } = await createTestProduct(adminClient);
 
     const res = await authedClient.get(`/products/${productId}`);
     expect(res.status()).toBe(200);
@@ -51,10 +52,9 @@ test.describe('Products API', () => {
     expect(product.skus.length).toBeGreaterThan(0);
   });
 
-  test('bulk fetch SKUs', async ({ authedClient }) => {
-    const trendingRes = await authedClient.get('/products/trending');
-    const products = await trendingRes.json();
-    const skuIds = products.slice(0, 3).map((p: { defaultSku: { id: number } }) => p.defaultSku.id);
+  test('bulk fetch SKUs', async ({ authedClient, adminClient }) => {
+    const products = await createTestProducts(adminClient, 3);
+    const skuIds = products.map((p) => p.skuId);
 
     const res = await authedClient.post('/products/skus/bulk', { ids: skuIds });
     expect(res.status()).toBe(200);
