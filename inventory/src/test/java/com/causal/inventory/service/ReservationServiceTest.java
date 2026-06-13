@@ -201,7 +201,7 @@ class ReservationServiceTest {
 
             reservationService.confirmReservation("evt-1", 1L, List.of());
 
-            verify(reservationRepository, never()).findByOrderId(any());
+            verify(reservationRepository, never()).findWithLockByOrderId(any());
             verify(reservationRepository, never()).deleteAll(any());
         }
 
@@ -210,7 +210,7 @@ class ReservationServiceTest {
             when(processedEventRepository.existsByEventIdAndConsumerId("evt-1", "confirmReservation"))
                     .thenReturn(false);
             // No reservations exist
-            when(reservationRepository.findByOrderId(1L)).thenReturn(List.of());
+            when(reservationRepository.findWithLockByOrderId(1L)).thenReturn(List.of());
 
             List<Map<String, Object>> expectedItems = List.of(
                     Map.of("skuId", 100, "quantity", 2));
@@ -228,7 +228,7 @@ class ReservationServiceTest {
             when(processedEventRepository.existsByEventIdAndConsumerId("evt-1", "confirmReservation"))
                     .thenReturn(false);
             Reservation r = makeReservation(100L, 2);
-            when(reservationRepository.findByOrderId(1L)).thenReturn(List.of(r));
+            when(reservationRepository.findWithLockByOrderId(1L)).thenReturn(List.of(r));
 
             List<Map<String, Object>> expectedItems = List.of(
                     Map.of("skuId", 100, "quantity", 2));

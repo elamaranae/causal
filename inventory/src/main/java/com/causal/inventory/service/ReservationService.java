@@ -159,7 +159,7 @@ public class ReservationService {
             return;
         }
 
-        List<Reservation> reservations = reservationRepository.findByOrderId(orderId);
+        List<Reservation> reservations = reservationRepository.findWithLockByOrderId(orderId);
 
         if (!reservationsMatch(reservations, expectedItems)) {
             log.error("Reservation mismatch for order {}: expected {} items, found {}",
