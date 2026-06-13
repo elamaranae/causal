@@ -35,7 +35,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -275,82 +274,6 @@ class InventoryIntegrationTest {
         if (confirmedSuccess) {
             assertEquals(45, stock.getAvailableCount(),
                     "Race condition: stock was restored by reclaim but order was confirmed as success");
-        }
-    }
-
-    @Test
-    void reclaimExpired_raceWithConfirm_shouldNotIncrementAfterConfirmedOrder() throws Exception {
-        createStock(100L, 1L, 50);
-
-        // Reserve 5 units → available=45
-        mockMvc.perform(post("/internal/inventory/stocks/reserve")
-                        .with(internalUser())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"userId": 1, "orderId": 1, "items": [{"skuId": 100, "quantity": 5}]}
-                                """))
-                .andExpect(status().isOk());
-
-        // Expire the reservation so reclaimExpired will find it
-        List<Reservation> reservations = reservationRepository.findByOrderId(1L);
-        reservations.forEach(r -> r.setExpiresAt(Instant.now().minus(1, ChronoUnit.MINUTES)));
-        reservationRepository.saveAll(reservations);
-
-        CountDownLatch reclaimReadDone = new CountDownLatch(1);
-        CountDownLatch confirmDone = new CountDownLatch(1);
-
-        Answer<?> realAnswer = Mockito.mockingDetails(reservationRepository)
-                .getMockCreationSettings().getDefaultAnswer();
-
-        // Intercept reclaimExpired's read: after it finds expired reservations, pause
-        // so confirmReservation can delete them first.
-        doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            List<Reservation> result = (List<Reservation>) realAnswer.answer(invocation);
-            if (!result.isEmpty()) {
-                reclaimReadDone.countDown();
-                confirmDone.await(5, TimeUnit.SECONDS);
-            }
-            return result;
-        }).when(reservationRepository).findBySkuIdAndExpiresAtLessThanEqual(eq(100L), any(Instant.class));
-
-        // Thread A: trigger reclaimExpired via a reserve that exceeds available stock.
-        // reclaimExpired reads the expired reservation, then pauses.
-        CompletableFuture<Void> reclaimFuture = CompletableFuture.runAsync(() -> {
-            try {
-                reservationService.reserve(new StockReserveRequest(2L, 2L,
-                        List.of(new StockReservationItemRequest(100L, 46))));
-            } catch (Exception ignored) {
-            }
-        });
-
-        // Thread B: after reclaim reads, confirm the reservation (deletes it + publishes success)
-        CompletableFuture.runAsync(() -> {
-            try {
-                reclaimReadDone.await(5, TimeUnit.SECONDS);
-                reservationService.confirmReservation("evt-1", 1L,
-                        List.of(Map.of("skuId", 100, "quantity", 5)));
-            } catch (Exception ignored) {
-            } finally {
-                confirmDone.countDown();
-            }
-        });
-
-        reclaimFuture.get(10, TimeUnit.SECONDS);
-
-        reset(reservationRepository);
-
-        Stock stock = stockRepository.findBySkuId(100L).orElseThrow();
-
-        boolean confirmedSuccess = outboxRepository.findAll().stream()
-                .anyMatch(e -> "order_success".equals(e.getPayload().get("status")));
-
-        // order_success means 5 units are sold — available must stay at 45.
-        // The bug: reclaimExpired increments available by 5 (to 50) on stale data,
-        // even though confirmReservation already deleted the reservation as "sold".
-        if (confirmedSuccess) {
-            assertEquals(45, stock.getAvailableCount(),
-                    "Race condition: reclaim incremented available count after order was already confirmed");
         }
     }
 
