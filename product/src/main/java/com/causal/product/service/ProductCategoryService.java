@@ -20,7 +20,7 @@ public class ProductCategoryService {
     this.mapper = mapper;
   }
 
-  @Cacheable(value = "categories")
+  // @Cacheable(value = "categories")
   public List<ProductCategoryListingResponse> getAll() {
     List<ProductCategory> categories = repository.findAll();
     return categories.stream().map(mapper::from).toList();

@@ -5,12 +5,14 @@ import com.causal.identity.user.RoleRepository;
 import com.causal.identity.user.User;
 import com.causal.identity.user.UserRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
 
 @Component
+@ConditionalOnProperty(name = "app.seed.admin", havingValue = "true")
 public class AdminSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;

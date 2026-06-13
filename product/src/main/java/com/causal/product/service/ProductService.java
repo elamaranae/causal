@@ -33,7 +33,7 @@ public class ProductService {
     this.skuService = skuService;
   }
 
-  @Cacheable(value = "product", key = "#id")
+  // @Cacheable(value = "product", key = "#id")
   public ProductShowResponse getProduct(Long id) {
     Product product = productRepository.findWithSkusById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
@@ -42,7 +42,7 @@ public class ProductService {
     return mapper.productShowResponseFrom(product);
   }
 
-  @Cacheable(value = "trending")
+  // @Cacheable(value = "trending")
   public List<ProductListingResponse> getTrendingProducts() {
     List<Product> products = productRepository.findFirst5ByOrderByIdAsc();
     skuService.attachPricesToSkus(products.stream().map(Product::getDefaultSku).toList());

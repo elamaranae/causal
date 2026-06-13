@@ -6,6 +6,7 @@ services:
     environment:
       - JWT_PRIVATE_KEY_PATH=/keys/private.pem
       - JWT_PUBLIC_KEY_PATH=/keys/public.pem
+      - APP_SEED_ADMIN=true
     volumes:
       - ../keys:/keys:ro
     depends_on:
