@@ -1,5 +1,6 @@
 package com.causal.product.client.inventory;
 
+import com.causal.product.client.inventory.dto.request.StockCreateRequest;
 import com.causal.product.client.inventory.dto.request.StockProductBulkGetRequest;
 import com.causal.product.client.inventory.dto.request.StockSkuBulkGetRequest;
 import com.causal.product.client.inventory.dto.response.ProductStockShowResponse;
@@ -23,4 +24,7 @@ public interface InventoryClient {
 
     @PostExchange("/stocks/products/bulk")
     List<ProductStockShowResponse> getStocksByProductIds(@RequestBody StockProductBulkGetRequest request);
+
+    @PostExchange("/stocks")
+    StockShowResponse createStock(@RequestBody StockCreateRequest request);
 }

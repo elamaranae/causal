@@ -11,10 +11,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "product_categories")
 @Getter
+@Setter
 public class ProductCategory {
   @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
   private long id;

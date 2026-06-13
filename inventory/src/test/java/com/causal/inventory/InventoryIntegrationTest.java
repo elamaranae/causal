@@ -266,15 +266,8 @@ class InventoryIntegrationTest {
 
         Stock stock = stockRepository.findBySkuId(100L).orElseThrow();
 
-        boolean confirmedSuccess = outboxRepository.findAll().stream()
-                .anyMatch(e -> "order_success".equals(e.getPayload().get("status")));
-
-        // If confirm published order_success, the stock is sold — available should stay at 45
-        // With the race bug, reclaim restores 5 units (available→50) AND order_success is published
-        if (confirmedSuccess) {
-            assertEquals(45, stock.getAvailableCount(),
-                    "Race condition: stock was restored by reclaim but order was confirmed as success");
-        }
+        assertEquals(45, stock.getAvailableCount(),
+                "Race condition: stock was restored by reclaim but order was confirmed as success");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.causal.inventory.service;
 
+import com.causal.inventory.dto.request.StockCreateRequest;
 import com.causal.inventory.dto.response.ProductStockShowResponse;
 import com.causal.inventory.dto.response.StockShowResponse;
 import com.causal.inventory.mapper.StockMapper;
@@ -32,6 +33,16 @@ public class StockService {
         return stockRepository.findBySkuIdIn(skuIds).stream()
                 .map(stockMapper::from)
                 .toList();
+    }
+
+    public StockShowResponse createStock(StockCreateRequest request) {
+        Stock stock = new Stock();
+        stock.setSkuId(request.skuId());
+        stock.setProductId(request.productId());
+        stock.setQuantity(request.quantity());
+        stock.setAvailableCount(request.quantity());
+        stock = stockRepository.save(stock);
+        return stockMapper.from(stock);
     }
 
     public List<ProductStockShowResponse> getStocksByProductIds(List<Long> productIds) {

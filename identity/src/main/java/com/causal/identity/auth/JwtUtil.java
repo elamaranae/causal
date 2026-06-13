@@ -124,6 +124,7 @@ public class JwtUtil {
                     .issueTime(new Date())
                     .expirationTime(new Date(System.currentTimeMillis() + jwtExpiration))
                     .claim("email", user.getEmail())
+                    .claim("roles", user.getRoles().stream().map(role -> role.getName()).toList())
                     .build();
 
             SignedJWT signedJWT = new SignedJWT(

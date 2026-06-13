@@ -17,10 +17,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "product_media")
 @Getter
+@Setter
 public class Media {
   @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;

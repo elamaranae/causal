@@ -1,5 +1,6 @@
 package com.causal.inventory.controller;
 
+import com.causal.inventory.dto.request.StockCreateRequest;
 import com.causal.inventory.dto.request.StockProductBulkGetRequest;
 import com.causal.inventory.dto.request.StockReserveRequest;
 import com.causal.inventory.dto.request.StockSkuBulkGetRequest;
@@ -37,6 +38,11 @@ public class StockController {
     @PostMapping("internal/inventory/stocks/products/bulk")
     public List<ProductStockShowResponse> getStocksByProductIds(@Valid @RequestBody StockProductBulkGetRequest request) {
         return stockService.getStocksByProductIds(request.productIds());
+    }
+
+    @PostMapping("internal/inventory/stocks")
+    public StockShowResponse createStock(@Valid @RequestBody StockCreateRequest request) {
+        return stockService.createStock(request);
     }
 
     @PostMapping("internal/inventory/stocks/reserve")

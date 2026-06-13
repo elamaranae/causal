@@ -29,6 +29,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "skus")
 @Getter
+@Setter
 public class Sku {
   @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -44,10 +45,10 @@ public class Sku {
   @OneToMany(mappedBy = "sku", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<Price> prices = new ArrayList<>();
 
-  @Transient @Getter @Setter
+  @Transient @Getter
   private Price price;
 
-  @Transient @Setter
+  @Transient
   private int stockQuantity;
 
   @Column(name = "product_id", insertable = false, updatable = false)

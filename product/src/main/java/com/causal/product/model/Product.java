@@ -29,6 +29,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "products")
 @Getter
+@Setter
 public class Product {
   @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -39,7 +40,6 @@ public class Product {
   private String primaryVariantKey;
 
   @Transient
-  @Setter
   private boolean inStock;
 
   @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
