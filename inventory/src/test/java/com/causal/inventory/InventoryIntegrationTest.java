@@ -231,7 +231,7 @@ class InventoryIntegrationTest {
             // With PESSIMISTIC_WRITE, reclaim's DELETE blocks on locked rows, so this
             // timeout fires and confirm proceeds — correct behavior, test passes.
             // Without the lock, reclaim completes within the window, causing the race.
-            reclaimDone.await(3, TimeUnit.SECONDS);
+            reclaimDone.await(500, TimeUnit.MILLISECONDS);
             return result;
         };
         doAnswer(pauseAfterRead).when(reservationRepository).findWithLockByOrderId(1L);
